@@ -7,9 +7,10 @@ from cartopy.mpl.gridliner import ( LONGITUDE_FORMATTER,
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-# from ..utilities import trunc_coords
-from .common import PLOTTYPE_ARGS, make_colors, check_cyclic
+from . common import PLOTTYPE_ARGS, make_colors, check_cyclic
 from .. convert import cyclic_dataarray
+
+__all__ = [ 'region_plot', 'global_plot' ]
 
 def region_plot(regions, ax=None, colors=None, only_regions=False,
                 figsize=(12, 5), projection='PlateCarree'):

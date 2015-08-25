@@ -15,6 +15,8 @@ from .. utilities import area_grid
 from .. analysis import min_max_cubes, global_avg
 from . glob import global_plot
 
+__all__ = [ 'pd_vs_pi_summary', ]
+
 def pd_vs_pi_summary(exp_pd, exp_pi, area=None,
                      level_trunc=None, abs_lim=None, pct_lim=None,
                      reverse_cmap=False, cmap="cubehelix_r", 

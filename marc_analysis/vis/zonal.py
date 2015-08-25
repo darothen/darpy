@@ -3,8 +3,9 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-#from ..utilities import trunc_coords
-from .common import set_labels, make_colors, PLOTTYPE_ARGS
+from . common import set_labels, make_colors, PLOTTYPE_ARGS
+
+__all__ = [ 'zonal_plot', 'zonal_vert_plot' ]
 
 def zonal_plot(data, ax=None, set_axes=True, check_coords=False, 
                plot_kws={}): 
