@@ -54,7 +54,7 @@ class Experiment(object):
         else:
             raise ValueError("Couldn't process `cases`")
 
-        self.cases = list(self.case_data.keys())
+        self._cases = list(self.case_data.keys())
 
         if not naming_case:
             self.naming_case = self.cases[-1]

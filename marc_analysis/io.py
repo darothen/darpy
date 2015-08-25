@@ -1,31 +1,23 @@
 
-import os
 import numpy as np
 from xray import open_dataset, decode_cf
-
-from . case_setup import WORK_DIR
 
 __all__ = ['load_variable', ]
 
 ##################
 
-def load_variable(var, act, aer, suffix="", save_dir=WORK_DIR,
+def load_variable(var_name, path_to_file,
                   method='xray', fix_times=True, extr_kwargs={}):
-    """ Interface for loading a variable into memory, using
-    either iris or xray 
+    """ Interface for loading an extracted variable into memory, using
+    either iris or xray. If `path_to_file` is instead a raw dataset,
+    then the entire contents of the file will be loaded!
 
     Parameters
     ----------
-    var : Var
-        The variable meta information
-    act, aer : strings
-        The activation and aerosol emissions case
     var_name : string
         The name of the variable to load
-    suffix : string (optional)
-        Particular file output suffix to look for
-    save_dir : string
-        Path to save directory; defaults to case WORK_DIR.
+    path_to_file : string
+        Location of file containing variable
     method : string
         Choose between 'iris' or 'xray'
     fix_times : bool
@@ -37,18 +29,7 @@ def load_variable(var, act, aer, suffix="", save_dir=WORK_DIR,
 
     """
 
-    var_name = var.varname
-
-    # build filename
-    fn = "%s_%s_%s" % (act, aer, var_name)
-    if suffix: 
-        fn += "_%s" % suffix
-    fn += ".nc"
-
-    print("Loading %s" % var) 
-    print("from %s/%s" % (save_dir, fn))
-
-    path_to_file = os.path.join(save_dir, fn)
+    print("Loading %s from %s" % (var_name, path_to_file))
 
     if method == "iris":
 
@@ -78,9 +59,7 @@ def load_variable(var, act, aer, suffix="", save_dir=WORK_DIR,
 
     elif method == "xray":
 
-        ds = open_dataset(path_to_file,
-                               decode_cf=False,
-                               **extr_kwargs)
+        ds = open_dataset(path_to_file, decode_cf=False, **extr_kwargs)
 
         # Fix time unit, if necessary
         interval, timestamp = ds.time.units.split(" since ")

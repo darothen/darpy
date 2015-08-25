@@ -88,8 +88,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
         retained_files = []
     
         # fn_extr :-> monthly file with variable subset
-        # TODO: `case_bits` should actually be a data structure which tracks what the
-        #       naming case is so it can be extracted for odd directory paths.
+        # TODO: `case_bits` should actually be a data structure which tracks what the naming case is so it can be extracted for odd directory paths. Right now we assume the tailing bit is the file identifier.
         case_fn_comb = "_".join(case_bits)
         naming_case_bit = case_bits[-1]
         fn_extr = "%s_%s_monthly.nc" % (case_fn_comb, var.varname)

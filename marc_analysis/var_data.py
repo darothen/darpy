@@ -189,12 +189,13 @@ class Var(object):
         for key, data in self.data.items():
             self.data[key] = func(data, *args, **kwargs)
 
-    def extract(self, save_dir=WORK_DIR, years_omit=5, years_offset=0,
-                re_extract=False, act_cases=CASES_ACT, aer_cases=CASES_AER):
+    def extract(self, exp, years_omit=5, years_offset=0,
+                re_extract=False):
         """ Extract the dataset for a given var. """
         
-        extract_variable(self, "", save_dir, years_omit, years_offset,
-                         re_extract, act_cases, aer_cases)
+        extract_variable(exp, self, years_omit=years_omit,
+                         years_offset=years_offset,
+                         re_extract=re_extract)
 
     ## Deprecated on transition to `marc_analysis`
     #
@@ -221,9 +222,7 @@ class Var(object):
     #     return self._load('iris', src_dir, act_cases, aer_cases,
     #                       fix_times, **kwargs)
 
-    def load_datasets(self, src_dir=WORK_DIR,
-                      act_cases=CASES_ACT, aer_cases=CASES_AER,
-                      fix_times=False, **kwargs):    
+    def load_datasets(self, exp, fix_times=False, **kwargs):
         """ Load the data for this variable into xray DataSets and 
         attach them to the current instance. 
 
@@ -242,32 +241,32 @@ class Var(object):
             Additional keyword arguments to pass to the loader.
 
         """
-        return self._load('xray', src_dir, act_cases, aer_cases,
-                          fix_times, **kwargs)
+        return self._load(exp, 'xray', fix_times, **kwargs)
 
-    def _load(self, method, src_dir, act_cases, aer_cases,
-              fix_times, **kwargs):
+    def _load(self, exp, method, fix_times, **kwargs):
         """ Loading workhorse method. """
 
         if self._loaded:
             raise Exception("Data is already loaded")
-        
-        if isinstance(act_cases, str):
-            act_cases = [act_cases, ]
-        if isinstance(aer_cases, str):
-            aer_cases = [aer_cases, ]
 
         # Save the cases
-        self._cases = dict(aer=aer_cases, act=act_cases)
+        self._cases = exp.case_data
+
+        # Get the location of the extracted variable data based
+        # on the Experiment
+        save_dir = exp.work_dir
 
         # Load the data
         self._data = dict()
-        for act, aer in product(act_cases, aer_cases):
-            self._data[act, aer] = load_variable(self, act, aer,
-                                                 save_dir=src_dir, 
-                                                 method=method,
-                                                 fix_times=fix_times,
-                                                 extr_kwargs=kwargs)
+        for case_bits in exp.all_cases():
+
+            case_fn_comb = "_".join(case_bits)
+            var_fn = "%s_%s.nc" % (case_fn_comb, self.varname)
+            path_to_file = os.path.join(save_dir, var_fn)
+
+            self._data[case_bits] = \
+                load_variable(self.varname, path_to_file,
+                              fix_times=fix_times, extr_kwargs=kwargs)
         self._loaded = True
 
     def to_dataarrays(self):
