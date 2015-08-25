@@ -108,7 +108,7 @@ def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
 
             all_cases = [ Case(shortname="%d" % i,
                                longname="factor %d" % i,
-                               vals=all_case_vals[i]) for i in xrange(n) ]
+                               vals=all_case_vals[i]) for i in range(n) ]
 
             exp = Experiment('empty', all_cases)
         else:
@@ -140,7 +140,8 @@ def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
     # Discover the type of the data passed into this method. If
     # it's an xray type, we'll preserve that. If it's an iris type,
     # then we need to crash for now.
-    first_case = [case_vals[0] for case_vals in all_case_vals]
+    first_case = next(exp.all_cases())
+
     proto = data_dict[first_case]
     if isinstance(proto, Dataset):
         return _master_dataset(exp, data_dict, new_fields)
@@ -154,7 +155,7 @@ def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
 def _master_dataarray(exp, data_dict):
 
     all_case_vals = exp.all_case_vals()
-    first_case = [case_vals[0] for case_vals in all_case_vals]
+    first_case = next(exp.all_cases())
     proto = data_dict[first_case]
 
     n_case_vals = [ len(case_vals) for case_vals in all_case_vals ]
@@ -162,15 +163,19 @@ def _master_dataarray(exp, data_dict):
 
     new_dims = exp.cases + [str(x) for x in proto.dims]
     new_values = empty(n_case_vals + list(proto.values.shape))
-    
     it = nditer(empty(n_case_vals), flags=['multi_index', ])
+
+    # The logic of this iterator is slightly complicated, but what we're
+    # doing is constructing an n-dimensional array where n is the number
+    # of cases we're considering. We're looping over the *indices* of that
+    # dimension, and performing a lookup in the record of all the case values
+    # for all the dimensions (all_case_vals) to create the key which
+    # corresponds to this data in the data dictionary which holds the data.
     while not it.finished:
         indx = it.multi_index
-        # act_i, aer_j = acts[i], aers[j]
-        case_indx = [ all_case_vals[n][i] \
-                      for i, n in zip(indx, xrange(n_cases)) ]
-        new_values[*indx, ...] = data_dict[case_indx].values
-        # new_values[*indx, ...] = data_dict[act_i, aer_j].values
+        case_indx = tuple([ all_case_vals[n][i] \
+                            for i, n in zip(indx, range(n_cases)) ])
+        new_values[indx] = data_dict[case_indx].values
         it.iternext()
 
     # Copy and add the case coordinates
@@ -191,7 +196,7 @@ def _master_dataarray(exp, data_dict):
 def _master_dataset(exp, data_dict, new_fields):
 
     all_case_vals = exp.all_case_vals()
-    first_case = [case_vals[0] for case_vals in all_case_vals]
+    first_case = next(exp.all_cases())
     proto = data_dict[first_case]
 
     n_case_vals = [ len(case_vals) for case_vals in all_case_vals ]
@@ -220,11 +225,9 @@ def _master_dataset(exp, data_dict, new_fields):
                 it = nditer(empty(n_case_vals), flags=['multi_index', ])
                 while not it.finished:
                     indx = it.multi_index
-                    # act_i, aer_j = acts[i], aers[j]
-                    case_indx = [ all_case_vals[n][i] \
-                                  for i, n in zip(indx, xrange(n_cases)) ]
-                    new_values[*indx, ...] = data_dict[case_indx].variables[f]
-                    # new_values[i, j, ...] = data_dict[act_i, aer_j].variables[f]
+                    case_indx = tuple([ all_case_vals[n][i] \
+                                      for i, n in zip(indx, range(n_cases)) ])
+                    new_values[indx] = data_dict[case_indx].variables[f]
                     it.iternext()
                 
                 ds_new[f] = (new_dims, new_values)

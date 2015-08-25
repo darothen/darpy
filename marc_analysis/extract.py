@@ -81,7 +81,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
         oldvar_extr = var.oldvar
         if not var.varname: var.varname = var.oldvar
 
-    for i, case_bits in enumerate(exp.all_cases):
+    for i, case_bits in enumerate(exp.all_cases()):
         print()
         print("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
 

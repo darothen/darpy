@@ -38,6 +38,8 @@ from itertools import product
 
 from . utilities import remove_intermediates, arg_in_list, cdo_func
 
+__all__ = [ 'Case', 'Experiment', ]
+
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
 class Experiment(object):
@@ -53,6 +55,8 @@ class Experiment(object):
         data_dir: str
 
         """
+
+        self.name = name
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()
@@ -82,7 +86,7 @@ class Experiment(object):
         # Walk tree of directory containing existing data to ensure
         # that all the cases are represented
         if validate_data:
-            self._validate_data(data_dir)
+            self._validate_data()
 
         # Location of working directory for saving intermediate
         # files
@@ -106,6 +110,11 @@ class Experiment(object):
         """ Generator for iterating over the encapsulated case
         information for this experiment
 
+        >>> for case_info in marc_aie.itercases():
+        ...     print case_info
+        ('aer', 'aerosol emissions', ['F2000', 'F1850'])
+        ('act', 'activation scheme', ['arg_comp', 'arg_min_smax'])
+
         """
         for case in self._cases:
             yield case, self._casenames[case], self._case_vals[case]
@@ -114,12 +123,24 @@ class Experiment(object):
         """ Return an iterable of all the ordered combinations of the
         cases comprising this experiment.
 
+        >>> for case in marc_aie.all_cases():
+        ...     print case
+        ('F2000', 'arg_comp')
+        ('F1850', 'arg_comp')
+        ('F2000', 'arg_min_smax')
+        ('F1850', 'arg_min_smax')
+
         """
-        return product(*self.all_case_vals)
+        return product(*self.all_case_vals())
 
     def all_case_vals(self):
         """ Return a list of lists which contain all the values for
         each case.
+
+        >>> for case_vals in marc_aieall_case_vals():
+        ...     print case_vals
+        ['F2000', 'F1850']
+        ['arg_comp', 'arg_min_smax']
         """
         return [ self._case_vals[case] for case in self._cases ]
 
@@ -139,7 +160,7 @@ class Experiment(object):
 
         root = self.data_dir
 
-        path_bits = self.all_cases
+        path_bits = self.all_cases()
         for bits in path_bits:
             full_path = os.path.join(root, *bits)
             assert os.path.exists(full_path)
