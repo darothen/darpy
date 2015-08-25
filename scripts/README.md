@@ -1,0 +1,1 @@
+Utility scripts which can be used to quickly analyze or view some aspect of the MARC_AIE experiment data. Ideally, each script will contain a few sub-programs.
