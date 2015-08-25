@@ -33,31 +33,45 @@ leaf factor.
 """
 
 import os
-from collections import OrderedDict, Iterable
+from collections import OrderedDict, Iterable, namedtuple
 from itertools import product
 
 from . utilities import remove_intermediates, arg_in_list, cdo_func
 
+Case = namedtuple('case', ['shortname', 'longname', 'vals'])
+
 class Experiment(object):
 
-    def __init__(self, name, cases, data_dir,
+    def __init__(self, name, cases, data_dir='./',
                  naming_case='', archive='', work_dir='data/',
                  validate_data=True):
 
-        if isinstance(cases, OrderedDict):
-            self.case_data = cases
-        elif isinstance(cases, Iterable):
-            self.case_data = OrderedDict()
+        """
+
+        name : str
+        cases : iterable of Cases
+        data_dir: str
+
+        """
+
+        # Process the case data, which is an Iterable of Cases
+        self._case_data = OrderedDict()
+        try:
             for case in cases:
-                assert isinstance(case, Iterable)
-                self.case_data[cases] = case
-        else:
+                assert isinstance(case, Case)
+                self._case_data[case.shortname] = case
+        except AttributeError:
             raise ValueError("Couldn't process `cases`")
 
-        self._cases = list(self.case_data.keys())
+        # Mapping to private information on case data
+        self._cases = list(self._case_data.keys())
+        self._case_vals = { case: self._case_data[case].vals \
+                            for case in self._cases }
+        self._casenames = { case: self._case_data[case].longname \
+                            for case in self._cases }
 
         if not naming_case:
-            self.naming_case = self.cases[-1]
+            self.naming_case = self._cases[-1]
         else:
             self.naming_case = naming_case
 
@@ -81,12 +95,33 @@ class Experiment(object):
             self.var_archive = os.path.join(self.work_dir,
                                             name + '.va')
 
+    @property
+    def cases(self):
+        """ Property wrapper for list of cases. Superfluous, but
+        it's really important that it doesn't get changed.
+        """
+        return self._cases
+
+    def itercases(self):
+        """ Generator for iterating over the encapsulated case
+        information for this experiment
+
+        """
+        for case in self._cases:
+            yield case, self._casenames[case], self._case_vals[case]
+
     def all_cases(self):
         """ Return an iterable of all the ordered combinations of the
         cases comprising this experiment.
 
         """
-        return product(*[self.case_data[key] for key in self.cases])
+        return product(*self.all_case_vals)
+
+    def all_case_vals(self):
+        """ Return a list of lists which contain all the values for
+        each case.
+        """
+        return [ self._case_vals[case] for case in self._cases ]
 
     def case_path(self, *case_bits):
         """ Return the path to a particular set of case's output from this

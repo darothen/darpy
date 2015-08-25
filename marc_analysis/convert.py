@@ -1,23 +1,20 @@
 """ Datatype converters
 """
 
-from copy import deepcopy
 from itertools import product
 
 from cartopy.util import add_cyclic_point
 from numpy import empty, nditer
 from xray import DataArray, Dataset
-from xray.conventions import encode_cf_datetime
 
 from . utilities import decompose_multikeys
-from . var_data import Var
+from . experiment import Case, Experiment
 
 def cyclic_dataarray(da, coord='lon'):
     """ Add a cyclic coordinate point to a DataArray along a specified
     named coordinate dimension.
 
     >>> from xray import DataArray
-    >>> from xray.conventions import encode_cf_datetime
     >>> data = DataArray([[1, 2, 3], [4, 5, 6]],
     ...                      coords={'x': [1, 2], 'y': range(3)},
     ...                      dims=['x', 'y'])
@@ -49,7 +46,7 @@ def cyclic_dataarray(da, coord='lon'):
 
     return new_da
 
-def create_master(var, data_dict=None, new_fields=["PS", ]):
+def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
     """ Save a dictionary which holds variable data for all
     activation and aerosol case combinations to a dataset
     with those cases as auxiliary indices.
@@ -101,81 +98,113 @@ def create_master(var, data_dict=None, new_fields=["PS", ]):
 
     if isinstance(var, str):
         assert data_dict is not None
-        acts, aers = decompose_multikeys(data_dict.keys())
+
+        if exp is None:
+            all_case_vals = decompose_multikeys(data_dict.keys())
+            # ^ all_case_vals is a list-of-lists of all the potential values for
+            # each case bit; so for the docstring example, it would be
+            # [ [ 'a', 'b' ], [ 1, 2 ] ]
+            n = len(all_case_vals)
+
+            all_cases = [ Case(shortname="%d" % i,
+                               longname="factor %d" % i,
+                               vals=all_case_vals[i]) for i in xrange(n) ]
+
+            exp = Experiment('empty', all_cases)
+        else:
+            all_case_vals = exp.cases
+
         new_fields.append(var)
-    elif isinstance(var, Var):
-        data_dict = var.data
-        acts = var.cases['act']
-        aers = var.cases['aer']
-        new_fields.append(var.varname)
-        new_fields.extend(var.oldvar)
     else:
-        raise ValueError("`var` must be a Var or a string.")
+        try: # see if it's a Var, and access metadata from the associated
+             # Experiment
+            data_dict = var.data
+            all_case_vals = exp.all_case_vals()
 
-    for act, aer in product(acts, aers):
-        assert (act, aer) in data_dict
+            new_fields.append(var.varname)
+            new_fields.extend(var.oldvar)
+        except AttributeError:
+            raise ValueError("`var` must be a Var or a string.")
 
-    if isinstance(acts, str): acts = [acts, ]
-    if isinstance(aers, str): aers = [aers, ]
-    
+    # Post-process the case inspection a bit:
+    # 1) Promote any single-value case to a list with one entry
+    for i, case_vals in enumerate(all_case_vals):
+        if isinstance(case_vals, str):
+            all_case_vals[i] = list(case_vals)
+
+    # 2) Make sure they're all still in the data dictionary. This is
+    #    circular but a necessary sanity check
+    for case_bits in product(*all_case_vals):
+        assert case_bits in data_dict
+
     # Discover the type of the data passed into this method. If
     # it's an xray type, we'll preserve that. If it's an iris type,
     # then we need to crash for now.
-    proto = data_dict[acts[0], aers[0]]
+    first_case = [case_vals[0] for case_vals in all_case_vals]
+    proto = data_dict[first_case]
     if isinstance(proto, Dataset):
-        return _master_dataset(data_dict, acts, aers, new_fields)
+        return _master_dataset(exp, data_dict, new_fields)
     elif isinstance(proto, DataArray):
-        return _master_dataarray(data_dict, acts, aers)
+        return _master_dataarray(exp, data_dict)
     # elif isinstance(proto, Cube):
     #     raise NotImplementedError("Cube handling not yet implemented")
     else:
         raise ValueError("Data must be an xray or iris type")
 
-def _master_dataarray(data_dict, acts, aers):
+def _master_dataarray(exp, data_dict):
 
-    proto = data_dict[acts[0], aers[0]]
-    n_acts, n_aers = len(acts), len(aers)
+    all_case_vals = exp.all_case_vals()
+    first_case = [case_vals[0] for case_vals in all_case_vals]
+    proto = data_dict[first_case]
 
-    new_dims = ['act', 'aer', ] + [str(x) for x in proto.dims]
-    new_values = empty([n_acts, n_aers] + list(proto.values.shape))
+    n_case_vals = [ len(case_vals) for case_vals in all_case_vals ]
+    n_cases = len(n_case_vals)
+
+    new_dims = exp.cases + [str(x) for x in proto.dims]
+    new_values = empty(n_case_vals + list(proto.values.shape))
     
-    it = nditer(empty((n_acts, n_aers)), flags=['multi_index', ])
+    it = nditer(empty(n_case_vals), flags=['multi_index', ])
     while not it.finished:
-        i, j = it.multi_index
-        act_i, aer_j = acts[i], aers[j]
-        new_values[i, j, ...] = data_dict[act_i, aer_j].values
+        indx = it.multi_index
+        # act_i, aer_j = acts[i], aers[j]
+        case_indx = [ all_case_vals[n][i] \
+                      for i, n in zip(indx, xrange(n_cases)) ]
+        new_values[*indx, ...] = data_dict[case_indx].values
+        # new_values[*indx, ...] = data_dict[act_i, aer_j].values
         it.iternext()
 
     # Copy and add the case coordinates
     new_coords = dict(proto.coords)
-    new_coords['act'] = acts
-    new_coords['aer'] = aers
+    for case, vals in zip(exp.cases, all_case_vals):
+        new_coords[case] = vals
 
-    da_new = DataArray(new_values, dims=new_dims,
-                         coords=new_coords)
+    da_new = DataArray(new_values, dims=new_dims, coords=new_coords)
 
     # Copy the attributes for act/aer coords, data itself
     for att, val in proto.attrs.items():
         da_new.attrs[att] = val
-    da_new.coords['act'].attrs['long_name'] = "activation case"
-    da_new.coords['aer'].attrs['long_name'] = "aerosol emission case"
+    for case, long, _ in exp.itercases():
+        da_new.coords[case].attrs['long_name'] = long
 
     return da_new
 
-def _master_dataset(data_dict, acts, aers, new_fields):
+def _master_dataset(exp, data_dict, new_fields):
 
-    proto = data_dict[acts[0], aers[0]]
-    n_acts, n_aers = len(acts), len(aers)
+    all_case_vals = exp.all_case_vals()
+    first_case = [case_vals[0] for case_vals in all_case_vals]
+    proto = data_dict[first_case]
+
+    n_case_vals = [ len(case_vals) for case_vals in all_case_vals ]
+    n_cases = len(n_case_vals)
 
     # Create the new Dataset to populate
     ds_new = Dataset()
     
-    # Add act/aer case coord
-    ds_new['act'] = acts
-    ds_new['act'].attrs['long_name'] = "activation case"
-    ds_new['aer'] = aers
-    ds_new['aer'].attrs['long_name'] = "aerosol emission case"
-    
+    # Add the case coordinates
+    for case, long, vals in exp.itercases():
+        ds_new[case] = vals
+        ds_new[case].attrs['long_name'] = long
+
     for f in proto.variables: 
         dsf = proto.variables[f]
        
@@ -185,14 +214,17 @@ def _master_dataset(data_dict, acts, aers, new_fields):
         else:
             if f in new_fields:
                 
-                new_dims = ['act', 'aer', ] + [str(x) for x in dsf.dims]
-                new_values = empty([n_acts, n_aers] + list(dsf.values.shape))
+                new_dims = exp.cases + [str(x) for x in dsf.dims]
+                new_values = empty(n_case_vals + list(dsf.values.shape))
 
-                it = nditer(empty((n_acts, n_aers)), flags=['multi_index', ])
+                it = nditer(empty(n_case_vals), flags=['multi_index', ])
                 while not it.finished:
-                    i, j = it.multi_index
-                    act_i, aer_j = acts[i], aers[j]
-                    new_values[i, j, ...] = data_dict[act_i, aer_j].variables[f]
+                    indx = it.multi_index
+                    # act_i, aer_j = acts[i], aers[j]
+                    case_indx = [ all_case_vals[n][i] \
+                                  for i, n in zip(indx, xrange(n_cases)) ]
+                    new_values[*indx, ...] = data_dict[case_indx].variables[f]
+                    # new_values[i, j, ...] = data_dict[act_i, aer_j].variables[f]
                     it.iternext()
                 
                 ds_new[f] = (new_dims, new_values)

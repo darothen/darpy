@@ -57,8 +57,8 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
     print("Processing %s from CESM output" %  var.oldvar)
     print("   experiment: %s" % exp.name)
     print("   for cases:")
-    for case, case_vals in exp.case_data.items():
-        print("      %s - %r" % (case, case_vals))
+    for case, case_name, case_vals in exp.itercases():
+        print("      %s (%s) - %r" % (case_name, case, case_vals))
 
     if hasattr(var, 'lev_bnds'): 
         print("   for levels %r" % var.lev_bnds)

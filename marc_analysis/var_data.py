@@ -1,10 +1,7 @@
 
 import os
 import json
-import shelve
 import pickle
-
-from itertools import product
 
 from . io import load_variable
 from . extract import extract_variable
@@ -20,7 +17,6 @@ __all__ = ['get_cesm_vars', 'VarList', 'Var',
 
 _TAB = "    "
 _CESM_VARS = None
-_VAR_ARCHIVE = os.path.join(WORK_DIR, VAR_ARCHIVE)
 
 #######################################################################
 ## Utility functions 
@@ -222,17 +218,17 @@ class Var(object):
     #     return self._load('iris', src_dir, act_cases, aer_cases,
     #                       fix_times, **kwargs)
 
-    def load_datasets(self, exp, fix_times=False, **kwargs):
+    def load_data(self, exp, method='xray', fix_times=False, **kwargs):
         """ Load the data for this variable into xray DataSets and 
         attach them to the current instance. 
 
         Parameters
         ----------
-        act_cases, aer_cases : strs or list of strs
-            The names of the cases to load.
-        src_dir : str
-            The path to look for the extracted data in; will
-            default to the **WORK_DIR** set in `cases_setup`.
+        exp : experiment.Experiment
+            The container object detailing the experiment that
+            produced this variable
+        method : str
+            String indicated to load `xray` or `iris` data structures
         fix_times : bool
             Attempt to decode and replace timestamps in dataset
             with better values given the bounds attached to them.
@@ -241,7 +237,7 @@ class Var(object):
             Additional keyword arguments to pass to the loader.
 
         """
-        return self._load(exp, 'xray', fix_times, **kwargs)
+        self._load(exp, method, fix_times, **kwargs)
 
     def _load(self, exp, method, fix_times, **kwargs):
         """ Loading workhorse method. """
@@ -250,7 +246,7 @@ class Var(object):
             raise Exception("Data is already loaded")
 
         # Save the cases
-        self._cases = exp.case_data
+        self._cases = exp.cases
 
         # Get the location of the extracted variable data based
         # on the Experiment

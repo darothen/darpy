@@ -34,7 +34,7 @@ def get_timestamp(time=True, date=True, fmt=None):
     """
 
     time_format = "%H:%M:%S"
-    date_format = "%m-%d-%Y"
+    date_format = "%m-%m-%Y"
 
     if fmt is None:
         if time and date:
