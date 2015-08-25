@@ -196,30 +196,30 @@ class Var(object):
         extract_variable(self, "", save_dir, years_omit, years_offset,
                          re_extract, act_cases, aer_cases)
 
-
-    def load_cubes(self, src_dir=WORK_DIR,
-                   act_cases=CASES_ACT, aer_cases=CASES_AER,
-                   fix_times=False, **kwargs):
-        """ Load the data for this variable into iris cubes and attach
-        them to the current instance.
-
-        Parameters
-        ----------
-        act_cases, aer_cases : strs or list of strs
-            The names of the cases to load.
-        src_dir : str
-            The path to look for the extracted data in; will
-            default to the **WORK_DIR** set in `cases_setup`.
-        fix_times : bool
-            Attempt to decode and replace timestamps in dataset
-            with better values given the bounds attached to them.
-        **kwargs : dict
-            Additional keyword arguments to pass to the loader.
-
-        """
-        raise NotImplementedError("`iris` support deprecated with Python 3")
-        # return self._load('iris', src_dir, act_cases, aer_cases,
-        #                   fix_times, **kwargs)
+    ## Deprecated on transition to `marc_analysis`
+    #
+    # def load_cubes(self, src_dir=WORK_DIR,
+    #                act_cases=CASES_ACT, aer_cases=CASES_AER,
+    #                fix_times=False, **kwargs):
+    #     """ Load the data for this variable into iris cubes and attach
+    #     them to the current instance.
+    #
+    #     Parameters
+    #     ----------
+    #     act_cases, aer_cases : strs or list of strs
+    #         The names of the cases to load.
+    #     src_dir : str
+    #         The path to look for the extracted data in; will
+    #         default to the **WORK_DIR** set in `cases_setup`.
+    #     fix_times : bool
+    #         Attempt to decode and replace timestamps in dataset
+    #         with better values given the bounds attached to them.
+    #     **kwargs : dict
+    #         Additional keyword arguments to pass to the loader.
+    #
+    #     """
+    #     return self._load('iris', src_dir, act_cases, aer_cases,
+    #                       fix_times, **kwargs)
 
     def load_datasets(self, src_dir=WORK_DIR,
                       act_cases=CASES_ACT, aer_cases=CASES_AER,
@@ -481,114 +481,116 @@ class CESMVar(Var):
                                              long_name=long_name, 
                                              units=units, **kwargs)
 
-class VarArchive(object):
-    """ Handler for accessing archive of known variables 
-    using the `shelve` database built-in. 
-
-    A VarArchive should nested dictionary:
-    `VAR_ARCHIVE`
-        -> Var (as json string)
-            -> (activation case, aerosol case)
-    At the final level should be a single string which holds
-    the filename where this particular variable's analyzed
-    data is stored.
-
-    """
-
-    def __init__(self, archive_name, mode='w',
-                 open_db=False):
-        self.archive_name = archive_name
-        self.mode = mode
-
-        if open_db:
-            self._open_db()
-
-    def _open_db(self):
-        """ Open the databse from shelve """
-
-        try:
-            self.db = shelve.open(self.archive_name, self.mode, 
-                                  writeback=True)
-            if self.mode == 'c': self.db['all_vars'] = []
-
-        except Exception as e: # since dbm uses a weird special one
-            if "open new db" in str(e):
-                print("Creating new variable" \
-                      " archive -> %s" % self.archive_name)
-                self.db = shelve.open(self.archive_name, "c", 
-                                      writeback=True)
-            else:
-                print("Could not open archive (%r)" % e)
-
-    def _create_empty_var(self, key):
-        empty_dict = { actaer: "" for actaer 
-                                    in product(CASES_ACT, 
-                                               CASES_AER) }
-        self.db[key] = empty_dict
-
-    def get(self, var, act=None, aer=None):
-        var_data = self.db[var.to_json()]
-
-        if (act is None) and (aer is None):
-            return var_data[(act, aer)]
-        elif (act is None):
-            return [ var_data[act,   a] for a in CASES_AER ]
-        elif (act is None): 
-            return [ var_data[a  , aer] for a in CASES_ACT ]
-        else:
-            return var_data
-
-    def set(self, var, act, aer, item):
-        var_json = var.to_json()
-
-        if var_json not in self.db:
-            self._create_empty_var(var_json)
-
-        var_data = self.db[var_json]
-        var_data[(act, aer)] = item
-
-        if var not in self.db['all_vars']:
-            self.db['all_vars'].append(var)
-
-    def __enter__(self):
-        
-        self._open_db()
-
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self.db.close()
-    
-        if isinstance(exc_value, TypeError):
-            print(traceback())
-            return False
-        else:
-            return True
-
-
-    def find_var(self, short_name=None, long_name=None):
-        """ Given the short or long name of a variable, search
-        for it in the saved archive. Return a `VarList` of any 
-        partial matches. """
-
-        if (short_name is None) and (long_name is None):
-            raise ValueError("Expected only one of short or long name.")
-
-        all_vars = self.db['all_vars']
-        all_vars = [var for var in all_vars if var != 'all_vars']
-
-        if short_name is not None:
-            in_var = lambda var: short_name in var.varname
-        else: # short circuit to either/orr
-            in_var = lambda var: long_name in var.long_name
-
-        result = VarList(var for var in all_vars if in_var(var))
- 
-        return result
-
-    @classmethod
-    def default(cls):
-        return VarArchive(_VAR_ARCHIVE)
+## Deprecated on transition to `marc_analysis` package
+#
+# class VarArchive(object):
+#     """ Handler for accessing archive of known variables
+#     using the `shelve` database built-in.
+#
+#     A VarArchive should nested dictionary:
+#     `VAR_ARCHIVE`
+#         -> Var (as json string)
+#             -> (activation case, aerosol case)
+#     At the final level should be a single string which holds
+#     the filename where this particular variable's analyzed
+#     data is stored.
+#
+#     """
+#
+#     def __init__(self, archive_name, mode='w',
+#                  open_db=False):
+#         self.archive_name = archive_name
+#         self.mode = mode
+#
+#         if open_db:
+#             self._open_db()
+#
+#     def _open_db(self):
+#         """ Open the databse from shelve """
+#
+#         try:
+#             self.db = shelve.open(self.archive_name, self.mode,
+#                                   writeback=True)
+#             if self.mode == 'c': self.db['all_vars'] = []
+#
+#         except Exception as e: # since dbm uses a weird special one
+#             if "open new db" in str(e):
+#                 print("Creating new variable" \
+#                       " archive -> %s" % self.archive_name)
+#                 self.db = shelve.open(self.archive_name, "c",
+#                                       writeback=True)
+#             else:
+#                 print("Could not open archive (%r)" % e)
+#
+#     def _create_empty_var(self, key):
+#         empty_dict = { actaer: "" for actaer
+#                                     in product(CASES_ACT,
+#                                                CASES_AER) }
+#         self.db[key] = empty_dict
+#
+#     def get(self, var, act=None, aer=None):
+#         var_data = self.db[var.to_json()]
+#
+#         if (act is None) and (aer is None):
+#             return var_data[(act, aer)]
+#         elif (act is None):
+#             return [ var_data[act,   a] for a in CASES_AER ]
+#         elif (act is None):
+#             return [ var_data[a  , aer] for a in CASES_ACT ]
+#         else:
+#             return var_data
+#
+#     def set(self, var, act, aer, item):
+#         var_json = var.to_json()
+#
+#         if var_json not in self.db:
+#             self._create_empty_var(var_json)
+#
+#         var_data = self.db[var_json]
+#         var_data[(act, aer)] = item
+#
+#         if var not in self.db['all_vars']:
+#             self.db['all_vars'].append(var)
+#
+#     def __enter__(self):
+#
+#         self._open_db()
+#
+#         return self
+#
+#     def __exit__(self, exc_type, exc_value, traceback):
+#         self.db.close()
+#
+#         if isinstance(exc_value, TypeError):
+#             print(traceback())
+#             return False
+#         else:
+#             return True
+#
+#
+#     def find_var(self, short_name=None, long_name=None):
+#         """ Given the short or long name of a variable, search
+#         for it in the saved archive. Return a `VarList` of any
+#         partial matches. """
+#
+#         if (short_name is None) and (long_name is None):
+#             raise ValueError("Expected only one of short or long name.")
+#
+#         all_vars = self.db['all_vars']
+#         all_vars = [var for var in all_vars if var != 'all_vars']
+#
+#         if short_name is not None:
+#             in_var = lambda var: short_name in var.varname
+#         else: # short circuit to either/orr
+#             in_var = lambda var: long_name in var.long_name
+#
+#         result = VarList(var for var in all_vars if in_var(var))
+#
+#         return result
+#
+#     @classmethod
+#     def default(cls):
+#         return VarArchive(_VAR_ARCHIVE)
 
 
 # BASE_VARS = [

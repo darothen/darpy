@@ -3,15 +3,14 @@ from itertools import product
 from functools import reduce
 from subprocess import call
 
-from . case_setup import case_path, WORK_DIR
-from . utilities import _GIT_COMMIT
+from . utilities import _GIT_COMMIT, remove_intermediates, arg_in_list, cdo_func
 
 __all__ = ['extract_variable', ]
 
-def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
-                     years_omit=5, years_offset=0, 
-                     re_extract=False,
-                     act_cases=[], aer_cases=[]):
+SAVE_VARS = ",time_bnds,hyam,hybm,PS,P0,gw"
+
+def extract_variable(exp, var, out_suffix="", save_dir='',
+                     years_omit=5, years_offset=0, re_extract=False):
     """ Extract a timeseries of data for one variable from the raw CESM/MARC output. 
 
     A few features bear some explanation:
@@ -28,6 +27,8 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
 
     Parameters
     ----------
+    exp : experiment.Experiment
+        The container of the experiment information
     var : (var_data.Var or subtype) or str
         The container for the variable info being extracted or just the
         name of a default CESM var
@@ -41,8 +42,6 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
         The number of years to add to the time unit definition.
     re_extract : bool
         Force extraction even if files already exist
-    act_cases, aer_cases : list of str
-        Experiment names to extract
 
     """
 
@@ -50,10 +49,17 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
         from .var_data import CESMVar
         var = CESMVar(var, )
 
+    if not save_dir:
+        save_dir = exp.work_dir
+
     print() 
     print("---------------------------------")
     print("Processing %s from CESM output" %  var.oldvar)
-    print("   for cases %r, %r" % (act_cases, aer_cases))
+    print("   experiment: %s" % exp.name)
+    print("   for cases:")
+    for case, case_vals in exp.case_data.items():
+        print("      %s - %r" % (case, case_vals))
+
     if hasattr(var, 'lev_bnds'): 
         print("   for levels %r" % var.lev_bnds)
     if hasattr(var, 'cdo_method'):
@@ -75,20 +81,25 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
         oldvar_extr = var.oldvar
         if not var.varname: var.varname = var.oldvar
 
-    for i, (act, aer) in enumerate(product(act_cases, aer_cases)):
+    for i, case_bits in enumerate(exp.all_cases):
         print()
-        print("   %02d)" % (i+1, ), act, aer)
+        print("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
 
         retained_files = []
     
         # fn_extr :-> monthly file with variable subset
-        fn_extr = "%s_%s_%s_monthly.nc" % (act, aer, var.varname)
-        in_file = os.path.join(case_path(act, aer),
-                      "%s.cam2.h0.00[0,1][0,%d-9]-*.nc" % (act, years_omit+1, ))
+        # TODO: `case_bits` should actually be a data structure which tracks what the
+        #       naming case is so it can be extracted for odd directory paths.
+        case_fn_comb = "_".join(case_bits)
+        naming_case_bit = case_bits[-1]
+        fn_extr = "%s_%s_monthly.nc" % (case_fn_comb, var.varname)
+        in_file = os.path.join(exp.case_path(*case_bits),
+                              "%s.cam2.h0.00[0,1][0,%d-9]-*.nc" % (naming_case_bit,
+                                                                   years_omit+1, ))
         out_file = os.path.join(save_dir, fn_extr)
 
         # fn_final :-> the end result of this output
-        fn_final = "%s_%s_%s" % (act, aer, var.varname)
+        fn_final = "%s_%s" % (case_fn_comb, var.varname)
         if out_suffix: 
             fn_final += "_%s" % out_suffix
         fn_final += ".nc"
@@ -101,7 +112,6 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
 
             # These are important metadata vars (vertical coord system,
             # time, etc) which we will always want to save
-            SAVE_VARS = ",time_bnds,hyam,hybm,PS,P0,gw"
 
             if not hasattr(var, 'lev_bnds'):
                 call("ncrcat -O -v %s %s %s" % 
@@ -129,7 +139,7 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
                 else:
                     cdo_bit = "_".join(cdo_arg for cdo_arg in var.cdo_method)
 
-                fn_cdo = "%s_%s_%s_%s.nc" % (act, aer, var.varname, cdo_bit)
+                fn_cdo = "%s_%s_%s.nc" % (case_fn_comb, var.varname, cdo_bit)
                 cdo_out_file = os.path.join(save_dir, fn_cdo)
 
                 cdo_func(var.cdo_method, out_file, cdo_out_file)
@@ -173,42 +183,3 @@ def extract_variable(var, out_suffix="", save_dir=WORK_DIR,
 
         else:
             print("      Extracted dataset already present.")
-
-def remove_intermediates(intermediates):
-    """ Delete list of intermediate files. """
-    for fn in intermediates:
-        print("Removing", fn)
-        os.remove(fn)
-
-def arg_in_list(arg, arg_list):
-    """ Returns true if `arg` is a partial match for any value in `arg_list`. """
-    return reduce(lambda a, b: a or b, [arg in s for s in arg_list])
-    
-def cdo_func(args, fn_in, fn_out, silent=True):
-    """ Execute a sequence of CDO functions in a single process. """
-    call_args = ["cdo", "-O", ]
-    if silent: call_args.append("-s")
-
-    def _proc_arg(arg):
-        if isinstance(arg, (list, tuple)):
-            return ",".join(arg)
-        else:
-            return arg
-
-    call_args.append(args[0])
-
-    for arg in args[1:]:
-        call_args.append("-" + _proc_arg(arg))
-    call_args.extend([fn_in, fn_out])
-
-    print("      CDO - %s" % " ".join(call_args))
-    call(call_args)
-
-    # Post-process using ncwa to remove variables which have been 
-    # averaged over
-    # if arg_in_list("vert", args):
-    #     call(['ncwa', '-O', '-a', "lev", fn_out, fn_out])
-    if arg_in_list("tim", args):
-        call(['ncwa', '-O', '-a', "time", fn_out, fn_out])
-    # if arg_in_list("zon", args):
-    #     call(['ncwa', '-O', '-a', "lon", fn_out, fn_out])

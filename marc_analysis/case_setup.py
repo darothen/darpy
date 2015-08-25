@@ -36,6 +36,3 @@ AMWG_OUT = ""
 
 ## CESM/MARC metadata and helper info
 lev_stdname = "atmosphere_hybrid_sigma_pressure_coordinate"
-
-def case_path(act, aer):
-    return os.path.join(DATA_ROOT_DIR, aer, act)

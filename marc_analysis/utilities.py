@@ -1,9 +1,10 @@
-import subprocess
+import os
 from argparse import ArgumentParser
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
 from itertools import product
+from subprocess import call, check_output
 
 import numpy as np
 from xray import DataArray, Dataset
@@ -13,7 +14,7 @@ from xray import DataArray, Dataset
 
 def get_git_versioning():
     """ Returns the currently checked out commit shortname. """
-    return subprocess.check_output(
+    return check_output(
         ['git', 'rev-parse', '--short', 'HEAD']
     ).strip()
 _GIT_COMMIT = get_git_versioning()
@@ -349,6 +350,45 @@ class Coord(object):
 
 ######################################################################
 ## Extraction/processing functions
+
+def remove_intermediates(intermediates):
+    """ Delete list of intermediate files. """
+    for fn in intermediates:
+        print("Removing", fn)
+        os.remove(fn)
+
+def arg_in_list(arg, arg_list):
+    """ Returns true if `arg` is a partial match for any value in `arg_list`. """
+    return reduce(lambda a, b: a or b, [arg in s for s in arg_list])
+
+def cdo_func(args, fn_in, fn_out, silent=True):
+    """ Execute a sequence of CDO functions in a single process. """
+    call_args = ["cdo", "-O", ]
+    if silent: call_args.append("-s")
+
+    def _proc_arg(arg):
+        if isinstance(arg, (list, tuple)):
+            return ",".join(arg)
+        else:
+            return arg
+
+    call_args.append(args[0])
+
+    for arg in args[1:]:
+        call_args.append("-" + _proc_arg(arg))
+    call_args.extend([fn_in, fn_out])
+
+    print("      CDO - %s" % " ".join(call_args))
+    call(call_args)
+
+    # Post-process using ncwa to remove variables which have been
+    # averaged over
+    # if arg_in_list("vert", args):
+    #     call(['ncwa', '-O', '-a', "lev", fn_out, fn_out])
+    if arg_in_list("tim", args):
+        call(['ncwa', '-O', '-a', "time", fn_out, fn_out])
+    # if arg_in_list("zon", args):
+    #     call(['ncwa', '-O', '-a', "lon", fn_out, fn_out])
 
 def create_arg_parser(valid_vars=None, var_groups=None):
     parser = ArgumentParser(description="Control CESM/MARC output extraction")
