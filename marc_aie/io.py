@@ -1,17 +1,9 @@
 
-from itertools import product
 import os
-import shelve
-
-try:
-    import iris
-except ImportError:
-    print("`iris` unavailable; don't try to use Cubes!")
-import xray
-
 import numpy as np
+from xray import open_dataset, decode_cf
 
-from .case_setup import WORK_DIR
+from . case_setup import WORK_DIR
 
 __all__ = ['load_variable', ]
 
@@ -86,7 +78,7 @@ def load_variable(var, act, aer, suffix="", save_dir=WORK_DIR,
 
     elif method == "xray":
 
-        ds = xray.open_dataset(path_to_file, 
+        ds = open_dataset(path_to_file,
                                decode_cf=False,
                                **extr_kwargs)
 
@@ -111,6 +103,6 @@ def load_variable(var, act, aer, suffix="", save_dir=WORK_DIR,
             ds.time.values = mean_times
 
         # Lazy decode CF
-        ds = xray.decode_cf(ds)
+        ds = decode_cf(ds)
 
         return ds

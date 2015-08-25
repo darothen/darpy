@@ -3,25 +3,15 @@ and analyzing results.
 
 """
 
-from .case_setup import CASES_ACT, CASES_AER, WORK_DIR
-from .extract import extract_variable
-from .io import load_variable
-from .utilities import area_grid
-from .analysis import global_avg, min_max_cubes
-from .var_data import CESMVar, CDOVar
-from .vis import global_plot, save_figure, pd_vs_pi_summary
-
-from functools import partial
-from itertools import product
-import numpy as np
-import xray
-
-import cartopy.crs as ccrs
-import matplotlib.ticker
 import matplotlib.pyplot as plt
+import numpy as np
+from xray import Dataset
 
 from IPython.html import widgets
 from IPython.display import clear_output, display
+
+from . utilities import area_grid
+from . vis import save_figure, pd_vs_pi_summary
 
 def four_panel_horizontal(var, src_dir=WORK_DIR,
                           extract=True, extr_kwargs={},
@@ -47,7 +37,7 @@ def four_panel_horizontal(var, src_dir=WORK_DIR,
 
     # Coerce to DataArray
     sample = var.data[CASES_ACT[0], CASES_AER[0]]
-    if isinstance(sample, xray.Dataset):
+    if isinstance(sample, Dataset):
         var.apply(lambda ds: ds[var.varname])
         if debug:
             print("converted to dataarray from %r" % type(sample))

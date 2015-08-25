@@ -1,0 +1,14 @@
+# Python compiled files
+*.pyc
+*~
+
+*.db
+*.nc
+*.pdf
+*.png
+
+# Notebooks - need to add them manually
+*.ipynb
+
+# PyCharm files
+.idea/*

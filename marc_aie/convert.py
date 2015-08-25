@@ -4,28 +4,21 @@
 from copy import deepcopy
 from itertools import product
 
-try:
-    from iris.cube import Cube
-    from iris.coords import DimCoord, CellMethod
-except ImportError:
-    print("`iris` unavailable; don't try to use Cubes!")
-
 from cartopy.util import add_cyclic_point
-
 from numpy import empty, nditer
-
-import xray
+from xray import DataArray, Dataset
 from xray.conventions import encode_cf_datetime
 
-from .utilities import decompose_multikeys
-from . import Var
+from . utilities import decompose_multikeys
+from . var_data import Var
 
 def cyclic_dataarray(da, coord='lon'):
     """ Add a cyclic coordinate point to a DataArray along a specified
     named coordinate dimension.
 
-    >>> import xray
-    >>> data = xray.DataArray([[1, 2, 3], [4, 5, 6]],
+    >>> from xray import DataArray
+    >>> from xray.conventions import encode_cf_datetime
+    >>> data = DataArray([[1, 2, 3], [4, 5, 6]],
     ...                      coords={'x': [1, 2], 'y': range(3)},
     ...                      dims=['x', 'y'])
     >>> cd = cyclic_dataarray(data, 'y')
@@ -33,7 +26,7 @@ def cyclic_dataarray(da, coord='lon'):
     array([[1, 2, 3, 1],
            [4, 5, 6, 4]])
     """
-    assert isinstance(da, xray.DataArray)
+    assert isinstance(da, DataArray)
 
     lon_idx = da.dims.index(coord)
     cyclic_data, cyclic_coord = add_cyclic_point(da.values,
@@ -45,7 +38,7 @@ def cyclic_dataarray(da, coord='lon'):
     new_coords[coord] = cyclic_coord
     new_values = cyclic_data
 
-    new_da = xray.DataArray(new_values, dims=da.dims, coords=new_coords)
+    new_da = DataArray(new_values, dims=da.dims, coords=new_coords)
 
     # Copy the attributes for the re-constructed data and coords
     for att, val in da.attrs.items():
@@ -129,9 +122,9 @@ def create_master(var, data_dict=None, new_fields=["PS", ]):
     # it's an xray type, we'll preserve that. If it's an iris type,
     # then we need to crash for now.
     proto = data_dict[acts[0], aers[0]]
-    if isinstance(proto, xray.Dataset):
+    if isinstance(proto, Dataset):
         return _master_dataset(data_dict, acts, aers, new_fields)
-    elif isinstance(proto, xray.DataArray):
+    elif isinstance(proto, DataArray):
         return _master_dataarray(data_dict, acts, aers)
     # elif isinstance(proto, Cube):
     #     raise NotImplementedError("Cube handling not yet implemented")
@@ -158,7 +151,7 @@ def _master_dataarray(data_dict, acts, aers):
     new_coords['act'] = acts
     new_coords['aer'] = aers
 
-    da_new = xray.DataArray(new_values, dims=new_dims,
+    da_new = DataArray(new_values, dims=new_dims,
                          coords=new_coords)
 
     # Copy the attributes for act/aer coords, data itself
@@ -175,7 +168,7 @@ def _master_dataset(data_dict, acts, aers, new_fields):
     n_acts, n_aers = len(acts), len(aers)
 
     # Create the new Dataset to populate
-    ds_new = xray.Dataset()
+    ds_new = Dataset()
     
     # Add act/aer case coord
     ds_new['act'] = acts

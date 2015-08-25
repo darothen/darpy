@@ -1,11 +1,13 @@
 
 import numpy as np
-import xray
+
+from xray import DataArray, Dataset
 
 # from windspharm.standard import VectorWind
 # from windspharm.tools import prep_data, recover_data, order_latdim
 
-from . utilities import copy_attrs, preserve_attrs, area_grid, shuffle_dims
+from . utilities import ( copy_attrs, preserve_attrs, area_grid,
+                         shuffle_dims )
 
 ################################################################
 ## DATASET MANIPULATION FUNCTIONS
@@ -169,7 +171,7 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
     psitmp[1::2] *= -1.
 
     # Promote to a DataArray; attach metadata
-    mpsi = xray.DataArray(psitmp[1::2], coords=v_wind.coords, name='MPSI')
+    mpsi = DataArray(psitmp[1::2], coords=v_wind.coords, name='MPSI')
     mpsi.attrs['long_name'] = "Meridional Streamfunction"
     mpsi.attrs['units'] = 'kg/s'
 
@@ -199,7 +201,7 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
 #     sf = recover_data(w.streamfunction(), ui)
 #
 #
-#     new_ds = xray.Dataset()
+#     new_ds = Dataset()
 #     new_ds['SF'] = (uwnd.dims, sf)
 #
 #     for coord in uwnd.coords:
@@ -241,7 +243,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
     if weights is None:
         weights = area_grid(data.lon, data.lat)
 
-    if isinstance(data, xray.DataArray):
+    if isinstance(data, DataArray):
 
         is_null = ~np.isfinite(data)
         if np.any(is_null):
@@ -251,10 +253,10 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
         # return np.sum(data*weights)/np.sum(weights)
         return (data*weights/weights.sum(dims)).sum(dims)
 
-    elif isinstance(data, xray.Dataset):
+    elif isinstance(data, Dataset):
 
         # Create a new temporary Dataset
-        new_data = xray.Dataset()
+        new_data = Dataset()
 
         # Iterate over the contents of the original Dataset,
         # which are all DataArrays, and compute the global avg

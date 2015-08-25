@@ -1,10 +1,10 @@
 import os
 from itertools import product
+from functools import reduce
 from subprocess import call
 
-from .case_setup import case_path, WORK_DIR
-from .utilities import _GIT_COMMIT
-from functools import reduce
+from . case_setup import case_path, WORK_DIR
+from . utilities import _GIT_COMMIT
 
 __all__ = ['extract_variable', ]
 

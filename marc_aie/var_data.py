@@ -2,17 +2,12 @@
 import os
 import json
 import shelve
-try:
-    import pickle as pickle
-except ImportError:
-    import pickle
+import pickle
 
 from itertools import product
 
-from .case_setup import ( WORK_DIR, VAR_ARCHIVE, 
-                          CASES_ACT, CASES_AER   )
-from .io import load_variable
-from .extract import extract_variable
+from . io import load_variable
+from . extract import extract_variable
 
 """
 Utilities for storing and archiving information for 

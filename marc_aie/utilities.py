@@ -6,9 +6,7 @@ from functools import wraps
 from itertools import product
 
 import numpy as np
-import xray
-
-from .case_setup import *
+from xray import DataArray, Dataset
 
 #####################################################################
 ## VERSIONING FUNCTIONS
@@ -60,7 +58,7 @@ def copy_attrs(data_orig, data_new):
 
     """
 
-    if isinstance(data_orig, xray.Dataset):
+    if isinstance(data_orig, Dataset):
 
         # Variables
         for v in data_orig.data_vars:
@@ -79,7 +77,7 @@ def copy_attrs(data_orig, data_new):
         for attr, val in data_orig.attrs.items():
             data_new.attrs[attr] = val
 
-    elif isinstance(data_orig, xray.DataArray):
+    elif isinstance(data_orig, DataArray):
 
         # Variable Metadata
         for att, val in data_orig.attrs.items():
@@ -259,7 +257,7 @@ def area_grid(lon, lat, asarray=False):
         coords = OrderedDict(lon=lon, lat=lat)
         while True:
             try:
-                areas = xray.DataArray(
+                areas = DataArray(
                     areas, coords, name='area',
                     attrs=dict(long_name="grid cell area", units="m^2")
                 )
