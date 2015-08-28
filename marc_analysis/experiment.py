@@ -37,6 +37,9 @@ from collections import OrderedDict, Iterable, namedtuple
 from itertools import product
 
 from . utilities import remove_intermediates, arg_in_list, cdo_func
+from . extract import extract_variable
+from . io import load_variable
+from . convert import create_master
 
 __all__ = [ 'Case', 'Experiment', ]
 
@@ -99,6 +102,24 @@ class Experiment(object):
             self.var_archive = os.path.join(self.work_dir,
                                             name + '.va')
 
+    ## Validation methods
+
+    def _validate_data(self):
+        """ Validate that the specified data directory contains
+        a hierarchy of directories which match the specified
+        case layout.
+
+        """
+
+        root = self.data_dir
+
+        path_bits = self.all_cases()
+        for bits in path_bits:
+            full_path = os.path.join(root, *bits)
+            assert os.path.exists(full_path)
+
+    ## Properties and accessors
+
     @property
     def cases(self):
         """ Property wrapper for list of cases. Superfluous, but
@@ -151,16 +172,49 @@ class Experiment(object):
         """
         return os.path.join(self.data_dir, *case_bits)
 
-    def _validate_data(self):
-        """ Validate that the specified data directory contains
-        a hierarchy of directories which match the specified
-        case layout.
+    ## Instance methods
+
+    def extract(self, var, **kwargs):
+        """ Extract a given variable.
+        """
+
+        extract_variable(self, var, **kwargs)
+
+    def load(self, var, fix_times=False, master=False, **kwargs):
+        """ Load the data for a variable into xray Datasets and
+        attach the variable and data to the current Experiment.
 
         """
 
-        root = self.data_dir
+        if var._loaded:
+            raise Exception("Data is already loaded")
 
-        path_bits = self.all_cases()
-        for bits in path_bits:
-            full_path = os.path.join(root, *bits)
-            assert os.path.exists(full_path)
+        # Save the cases
+        var._cases = self.cases
+
+        # Get the location of the extracted variable data based
+        # on the Experiment
+        save_dir = self.work_dir
+
+        # Load the data
+        var._data = dict()
+        for case_bits in self.all_cases():
+
+            case_fn_comb = "_".join(case_bits)
+            var_fn = "%s_%s.nc" % (case_fn_comb, var.varname)
+            path_to_file = os.path.join(save_dir, var_fn)
+
+            var._data[case_bits] = \
+                load_variable(var.varname, path_to_file,
+                              fix_times=fix_times, extr_kwargs=kwargs)
+        var._loaded = True
+
+        if master:
+            cmd_dict = dict()
+            if 'new_fields' in kwargs:
+                cmd_dict['new_fields'] = kwargs['new_fields']
+            var.master = create_master(self, var, **cmd_dict)
+
+        # Attach to current Experiment
+        self.__dict__[var.varname] = var
+

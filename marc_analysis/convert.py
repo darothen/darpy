@@ -7,8 +7,7 @@ from cartopy.util import add_cyclic_point
 from numpy import empty, nditer
 from xray import DataArray, Dataset
 
-from . utilities import decompose_multikeys
-from . experiment import Case, Experiment
+__all__ = [ 'cyclic_dataarray', 'create_master', 'dataset_to_cube', ]
 
 def cyclic_dataarray(da, coord='lon'):
     """ Add a cyclic coordinate point to a DataArray along a specified
@@ -46,46 +45,20 @@ def cyclic_dataarray(da, coord='lon'):
 
     return new_da
 
-def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
+def create_master(exp, var, new_fields=["PS", ]):
     """ Save a dictionary which holds variable data for all
     activation and aerosol case combinations to a dataset
     with those cases as auxiliary indices.
 
-    Can be run with two major different configurations, and the 
-    parameter `var` can either be a string or a :class:`Var`
-    instance. In the first case, you must supply the `data_dict`
-    which holds all of the data for all of the cases. For example,
-
-    >>> from xray import Dataset as D
-    >>> data_dict = {
-    ...     ('a', 1): D({'data': [1, 2, 3]}),
-    ...     ('b', 1): D({'data': [3, 3, 1]}),
-    ...     ('a', 2): D({'data': [5, 2, 1]}),
-    ...     ('b', 2): D({'data': [3, 4, 0]}),
-    ... }
-    >>> create_master_dataset("test_data", data_dict)
-    <xray.Dataset>
-    Dimensions:  (act: 2, aer: 2, data: 3)
-    Coordinates:
-      * act      (act) |S1 'a' 'b'
-      * aer      (aer) int64 1 2
-      * data     (data) int64 1 2 3
-    Data variables:
-        *empty*
-
     Parameters:
     -----------
-    var : str or Var
-        The name of the variable to extract from `data_dict`, or
-        a Var object containing the data and cases to infer when
+    exp : Experiment
+        An Experiment object containing the cases to convert
+    var : Var
+        A Var object containing the data and cases to infer when
         creating the master dataset.
-    data_dict : dict-like (optional)
-        A multi-keyed dictionary containing the separate DataSets;
-        note that the case information will be inferred from these
-        multikeys, so they must cover the entire span of potential
-        keys. 
     new_fields : list of strs (optional)
-        A list of the keys in each DataSet to include in the 
+        A list of the keys in each DataSet to include in the
         final multi-keyed master
 
     Returns:
@@ -96,35 +69,15 @@ def create_master(var, exp=None, data_dict=None, new_fields=["PS", ]):
 
     """
 
-    if isinstance(var, str):
-        assert data_dict is not None
+    try: # see if it's a Var, and access metadata from the associated
+         # Experiment
+        data_dict = var.data
+        all_case_vals = exp.all_case_vals()
 
-        if exp is None:
-            all_case_vals = decompose_multikeys(data_dict.keys())
-            # ^ all_case_vals is a list-of-lists of all the potential values for
-            # each case bit; so for the docstring example, it would be
-            # [ [ 'a', 'b' ], [ 1, 2 ] ]
-            n = len(all_case_vals)
-
-            all_cases = [ Case(shortname="%d" % i,
-                               longname="factor %d" % i,
-                               vals=all_case_vals[i]) for i in range(n) ]
-
-            exp = Experiment('empty', all_cases)
-        else:
-            all_case_vals = exp.cases
-
-        new_fields.append(var)
-    else:
-        try: # see if it's a Var, and access metadata from the associated
-             # Experiment
-            data_dict = var.data
-            all_case_vals = exp.all_case_vals()
-
-            new_fields.append(var.varname)
-            new_fields.extend(var.oldvar)
-        except AttributeError:
-            raise ValueError("`var` must be a Var or a string.")
+        new_fields.append(var.varname)
+        new_fields.extend(var.oldvar)
+    except AttributeError:
+        raise ValueError("`var` must be a Var or a string.")
 
     # Post-process the case inspection a bit:
     # 1) Promote any single-value case to a list with one entry
