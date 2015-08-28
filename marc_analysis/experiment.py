@@ -47,19 +47,25 @@ Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
 class Experiment(object):
 
-    def __init__(self, name, cases, data_dir='./',
+    def __init__(self, name, cases, data_dir='./', full_path=False,
                  naming_case='', archive='', work_dir='data/',
-                 validate_data=True):
+                 base_year=0, validate_data=True):
 
         """
 
         name : str
         cases : iterable of Cases
         data_dir: str
+        full_path : bool
+            use the scheme "cases[0]/model_component/hist/files"
+        base_year : int
+            first year in output
 
         """
 
         self.name = name
+        self.full_path = full_path
+        self.base_year = base_year
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()

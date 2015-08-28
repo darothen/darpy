@@ -9,8 +9,16 @@ __all__ = ['extract_variable', ]
 
 SAVE_VARS = ",time_bnds,hyam,hybm,PS,P0,gw"
 
-def extract_variable(exp, var, out_suffix="", save_dir='',
-                     years_omit=5, years_offset=0, re_extract=False):
+COMP_MAP = {
+    'atm': 'cam2',
+    'rof': 'rtm',
+    'ocn': 'pop',
+    'lnd': 'clm2',
+}
+
+def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
+                     years_omit=5, years_offset=0,
+                     component='cam2', history=0):
     """ Extract a timeseries of data for one variable from the raw CESM/MARC output. 
 
     A few features bear some explanation:
@@ -36,12 +44,16 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
         Suffix for final filename
     save_dir : string
         Path to save directory; defaults to case WORK_DIR.
+    re_extract : bool
+        Force extraction even if files already exist
     years_omit : int
         The number of years to omit from the beginning of the dataset
     years_offset : int
         The number of years to add to the time unit definition.
-    re_extract : bool
-        Force extraction even if files already exist
+    component : str
+        The model component to extract from.
+    history : int
+        The integer identifier of the history tape to extract
 
     """
 
@@ -92,6 +104,13 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
         case_fn_comb = "_".join(case_bits)
         naming_case_bit = case_bits[-1]
         fn_extr = "%s_%s_monthly.nc" % (case_fn_comb, var.varname)
+
+        path_to_data = os.path.join(exp.case_path(*case_bits))
+        if exp.full_path:
+            path_to_data = os.path.join(path_to_data, "atm", "hist")
+
+        file_list = []
+
         in_file = os.path.join(exp.case_path(*case_bits),
                               "%s.cam2.h0.00[0,1][0,%d-9]-*.nc" % (naming_case_bit,
                                                                    years_omit+1, ))
@@ -152,7 +171,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='',
                     call(['ncrename', '-v', ".%s,%s" % (var.oldvar, var.varname), of])
 
             ## Add attributes to variable and global info
-            att_list = [ 
+            att_list = [
                 "-a", "years_omit,global,o,i,%d" % (int(years_omit), ), 
                 "-a", "years_offset,global,o,i,%d" % (int(years_offset), ), 
                 "-a", "git_commit,global,o,c,%s" % _GIT_COMMIT,
