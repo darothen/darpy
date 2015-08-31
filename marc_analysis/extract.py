@@ -18,7 +18,7 @@ COMP_MAP = {
 # Note - must compile with re.VERBOSE option; can't use advanced
 # string formatting because of specified field lengths in regex!
 OUTPUT_FN_REGEX = """
-    (?P<name>%s)     # Case name - format wildcard, string
+    (?P<name>\w+)     # Case name
     .
     (?P<comp>%s)\d?  # Model component - format wildcard, string
     .
@@ -83,9 +83,9 @@ def _get_file_list(output_dir, regex_str, years_omit=0):
 
     return filtered_files
 
-def _format_regex(case, comp='cam', hist=0):
+def _format_regex(comp='cam', hist=0):
     """ Create matching regex with experiment output details hardcoded. """
-    return OUTPUT_FN_REGEX % (case, comp, hist)
+    return OUTPUT_FN_REGEX % (comp, hist)
 
 def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
                      years_omit=5, years_offset=0,
@@ -174,14 +174,13 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         # fn_extr :-> monthly file with variable subset
         # TODO: `case_bits` should actually be a data structure which tracks what the naming case is so it can be extracted for odd directory paths. Right now we assume the tailing bit is the file identifier.
         case_fn_comb = "_".join(case_bits)
-        naming_case_bit = case_bits[-1]
         fn_extr = "%s_%s_monthly.nc" % (case_fn_comb, var.varname)
 
         path_to_data = os.path.join(exp.case_path(*case_bits))
         if exp.full_path:
             path_to_data = os.path.join(path_to_data, "atm", "hist")
 
-        regex_str = _format_regex(naming_case_bit, component, history)
+        regex_str = _format_regex(component, history)
         file_list = _get_file_list(path_to_data, regex_str, years_omit)
 
         # pre-pend path

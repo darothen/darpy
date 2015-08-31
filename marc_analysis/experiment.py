@@ -255,4 +255,3 @@ class Experiment(object):
 
         # Attach to current Experiment
         self.__dict__[var.varname] = var
-
