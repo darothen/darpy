@@ -1,9 +1,8 @@
-import os
-from itertools import product
-from functools import reduce
+import os, re
+from pandas import DataFrame
 from subprocess import call
 
-from . utilities import _GIT_COMMIT, remove_intermediates, arg_in_list, cdo_func
+from . utilities import _GIT_COMMIT, remove_intermediates, cdo_func
 
 __all__ = ['extract_variable', ]
 
@@ -16,10 +15,82 @@ COMP_MAP = {
     'lnd': 'clm2',
 }
 
+# Note - must compile with re.VERBOSE option; can't use advanced
+# string formatting because of specified field lengths in regex!
+OUTPUT_FN_REGEX = """
+    (?P<name>%s)     # Case name - format wildcard, string
+    .
+    (?P<comp>%s)\d?  # Model component - format wildcard, string
+    .
+    h(?P<hist>%1d)   # History tape number - format wildcard, int
+    .
+    (?P<year>\d{4})  # Year
+    -
+    (?P<month>\d{2}) # Month
+    -?
+    (?P<day>\d{2})?  # Day, if present
+    -?
+    (?P<time>\d{5})? # Timestamp, if present
+    (.nc)$          # file suffix (netcdf)
+"""
+
+def _get_file_list(output_dir, regex_str, years_omit=0):
+    """ Match the files in a specified directory against a regex
+    and process them, filtering based on how many years to omit.
+
+    Note - this method serves as a kernel for a future expansion
+    to analyze what files are present in the dataset, hence why
+    it is overcomplicated.
+    """
+
+    # Compile the regular expression for matching
+    comp_re = re.compile(regex_str, re.VERBOSE)
+
+    # Process the files into a DataFrame
+    all_files = os.listdir(output_dir)
+
+    # Analyze the filenames using the passed regular expression
+    matches = [ comp_re.match(f) for f in all_files ]
+    groups, valid_files = zip(*[ (m.groupdict(), m.string) \
+                                 for m in matches if m is not None ])
+    groups = list(groups)
+    valid_files = list(valid_files)
+
+    # Postprocess - convert Nones, record monthly or sub-monthly
+    for g in groups:
+        g['monthly'] = False
+        if g['day'] is None: g['day'] = 1; g['monthly'] = True
+        if g['time'] is None: g['time'] = 0; g['monthly'] = True
+
+    files_df = DataFrame(groups)
+    files_df['filename'] = valid_files
+
+    # Postprocess - convert strings to ints
+    for key in ['year', 'month', 'day', 'time', 'hist']:
+        files_df[key] = files_df[key].apply(int)
+
+    # Postprocess - sort
+    files_df = files_df.sort(['hist', 'year', 'month', 'day', 'time'])
+
+    ###################################################################
+
+    # Determine 0th year and extract all years beyond 0th year + years_omit
+    year0 = files_df.iloc[0].year
+    year_start = year0 + years_omit
+    filtered_files = (files_df[files_df['year'] > 0]
+                         .filename
+                         .tolist())
+
+    return filtered_files
+
+def _format_regex(case, comp='cam', hist=0):
+    """ Create matching regex with experiment output details hardcoded. """
+    return OUTPUT_FN_REGEX % (case, comp, hist)
+
 def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
                      years_omit=5, years_offset=0,
                      component='cam2', history=0):
-    """ Extract a timeseries of data for one variable from the raw CESM/MARC output. 
+    """ Extract a timeseries of data for one variable from the raw CESM/MARC output.
 
     A few features bear some explanation:
 
@@ -64,15 +135,16 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     if not save_dir:
         save_dir = exp.work_dir
 
-    print() 
+    print()
     print("---------------------------------")
     print("Processing %s from CESM output" %  var.oldvar)
     print("   experiment: %s" % exp.name)
     print("   for cases:")
     for case, case_name, case_vals in exp.itercases():
         print("      %s (%s) - %r" % (case_name, case, case_vals))
+    print("   omitting %d years" % years_omit)
 
-    if hasattr(var, 'lev_bnds'): 
+    if hasattr(var, 'lev_bnds'):
         print("   for levels %r" % var.lev_bnds)
     if hasattr(var, 'cdo_method'):
         print("   applying methods %r" % var.cdo_method)
@@ -98,7 +170,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         print("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
 
         retained_files = []
-    
+
         # fn_extr :-> monthly file with variable subset
         # TODO: `case_bits` should actually be a data structure which tracks what the naming case is so it can be extracted for odd directory paths. Right now we assume the tailing bit is the file identifier.
         case_fn_comb = "_".join(case_bits)
@@ -109,43 +181,45 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         if exp.full_path:
             path_to_data = os.path.join(path_to_data, "atm", "hist")
 
-        file_list = []
+        regex_str = _format_regex(naming_case_bit, component, history)
+        file_list = _get_file_list(path_to_data, regex_str, years_omit)
 
-        in_file = os.path.join(exp.case_path(*case_bits),
-                              "%s.cam2.h0.00[0,1][0,%d-9]-*.nc" % (naming_case_bit,
-                                                                   years_omit+1, ))
+        # pre-pend path
+        file_list = [ os.path.join(path_to_data, fn) for fn in file_list ]
+        in_file = " ".join(file_list)
+
         out_file = os.path.join(save_dir, fn_extr)
 
         # fn_final :-> the end result of this output
         fn_final = "%s_%s" % (case_fn_comb, var.varname)
-        if out_suffix: 
+        if out_suffix:
             fn_final += "_%s" % out_suffix
         fn_final += ".nc"
         out_file_final = os.path.join(save_dir, fn_final)
 
         retained_files.append(out_file)
 
-        if ( re_extract or not os.path.exists(out_file_final) ): 
+        if ( re_extract or not os.path.exists(out_file_final) ):
             print("      Extracting from original dataset")
 
             # These are important metadata vars (vertical coord system,
             # time, etc) which we will always want to save
 
             if not hasattr(var, 'lev_bnds'):
-                call("ncrcat -O -v %s %s %s" % 
+                call("ncrcat -O -v %s %s %s" %
                          (oldvar_extr+SAVE_VARS, in_file, out_file),
                      shell=True)
-            else: 
+            else:
                 if len(var.lev_bnds) == 2: lo, hi = var.lev_bnds
                 else: lo, hi = var.lev_bnds[0], var.lev_bnds[0]
-                call("ncrcat -O -d lev,%d,%d -v %s %s %s" % 
+                call("ncrcat -O -d lev,%d,%d -v %s %s %s" %
                       (lo, hi, oldvar_extr+SAVE_VARS, in_file, out_file),
                      shell=True)
 
             if combine:
                 print("      combining vars")
-                ncap2_args = ["ncap2", "-O", "-s", 
-                              "%s=%s" % (var.varname, "+".join(comb_vars)), 
+                ncap2_args = ["ncap2", "-O", "-s",
+                              "%s=%s" % (var.varname, "+".join(comb_vars)),
                               out_file, "-o", out_file]
                 if var.ncap_str: ncap2_args[3] = "'%s'" % var.ncap_str
                 #print ncap2_args
@@ -172,14 +246,14 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
 
             ## Add attributes to variable and global info
             att_list = [
-                "-a", "years_omit,global,o,i,%d" % (int(years_omit), ), 
-                "-a", "years_offset,global,o,i,%d" % (int(years_offset), ), 
+                "-a", "years_omit,global,o,i,%d" % (int(years_omit), ),
+                "-a", "years_offset,global,o,i,%d" % (int(years_offset), ),
                 "-a", "git_commit,global,o,c,%s" % _GIT_COMMIT,
             ]
             if hasattr(var, 'attributes'):
                 print("      modifying var attributes")
                 for att, val in var.attributes.items():
-                    dtype = { int: 'i', 
+                    dtype = { int: 'i',
                               str: 'c',
                               float: 'f', }[type(val)]
                     print("         %s: %s (%s)" % (att, val, dtype))
