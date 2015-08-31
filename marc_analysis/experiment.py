@@ -46,26 +46,58 @@ __all__ = [ 'Case', 'Experiment', ]
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
 class Experiment(object):
+    """ CESM/MARC Experiment details.
+
+    Experiment encapsulates information about a particular CESM/MARC
+    experiment so that data can quickly and easily be accessed. It
+    records the layout of the experiment (how many different cases),
+    where the data directory resides, and some high-level details
+    about how to process the data.
+
+    Attributes
+    ----------
+    name : str
+        The name of the experiment.
+    cases : iterable of Case namedtuples
+        The levels of the experimental cases being considered
+    data_dir : str
+        Path to directory containing the unanalyzed data for this
+        experiment
+    work_dir : str
+        Path to directory to save analyzed data for this experiment
+
+    """
 
     def __init__(self, name, cases, data_dir='./', full_path=False,
                  naming_case='', archive='', work_dir='data/',
-                 base_year=0, validate_data=True):
+                 validate_data=True):
 
         """
-
+        Parameters
+        ----------
         name : str
-        cases : iterable of Cases
-        data_dir: str
+            The name of the experiment.
+        cases : iterable of Case namedtuples
+            The levels of the experimental cases being considered
+        data_dir : str
+            Path to directory containing the unanalyzed data for this
+            experiment
+        work_dir : str
+            Path to directory to save analyzed data for this experiment
         full_path : bool
-            use the scheme "cases[0]/model_component/hist/files"
-        base_year : int
-            first year in output
-
+            Indicates whether the data directory structure leads immediately
+            to a folder containing the output data (if `False`) or to the
+            hierarchical structure output by CESM/MARC by default
+        naming_case: str, optional
+            The case which lends itself to the actual file naming scheme
+            (usually the last one)
+        validate_data : bool, optional (default True)
+            Validate that the specified case structure is reflected in the
+            directory structure passed via `data_dir`
         """
 
         self.name = name
         self.full_path = full_path
-        self.base_year = base_year
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()
