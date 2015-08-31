@@ -41,7 +41,7 @@ from . extract import extract_variable
 from . io import load_variable
 from . convert import create_master
 
-__all__ = [ 'Case', 'Experiment', ]
+__all__ = [ 'Case', 'Experiment', 'SingleCaseExperiment', ]
 
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
@@ -132,7 +132,7 @@ class Experiment(object):
         # Location of working directory for saving intermediate
         # files
         if not os.path.exists(work_dir):
-            os.mkdirs(work_dir)
+            os.mkdir(work_dir)
         self.work_dir = work_dir
 
         # Name of var archive
@@ -255,3 +255,29 @@ class Experiment(object):
 
         # Attach to current Experiment
         self.__dict__[var.varname] = var
+
+class SingleCaseExperiment(Experiment):
+    """ Special case of Experiment where only a single model run
+    is to be analyzed.
+
+    """
+
+    def __init__(self, name, **kwargs):
+        """
+        Parameters
+        ---------
+        name : str
+            The name to use when referencing the model run
+
+        """
+        cases = [ Case(name, name, [ name, ]), ]
+        super(self.__class__, self).__init__(name, cases, validate_data=False,
+                                             **kwargs)
+
+    def case_path(self, *args):
+        """ Overridden case_path() method which simply returns the
+        data_dir, since that's where the data is held.
+
+        """
+
+        return self.data_dir
