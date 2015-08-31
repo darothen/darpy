@@ -89,7 +89,7 @@ def _format_regex(comp='cam', hist=0):
 
 def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
                      years_omit=5, years_offset=0,
-                     component='cam2', history=0):
+                     component='cam', history=0):
     """ Extract a timeseries of data for one variable from the raw CESM/MARC output.
 
     A few features bear some explanation:
