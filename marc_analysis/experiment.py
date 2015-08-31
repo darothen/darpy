@@ -67,6 +67,7 @@ class Experiment(object):
         Path to directory to save analyzed data for this experiment
 
     """
+    # TODO: Add a `repr` method here
 
     def __init__(self, name, cases, data_dir='./', full_path=False,
                  naming_case='', archive='', work_dir='data/',

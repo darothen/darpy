@@ -9,16 +9,16 @@ __all__ = ['extract_variable', ]
 SAVE_VARS = ",time_bnds,hyam,hybm,PS,P0,gw"
 
 COMP_MAP = {
-    'atm': 'cam2',
+    'atm': 'cam',
     'rof': 'rtm',
     'ocn': 'pop',
-    'lnd': 'clm2',
+    'lnd': 'clm',
 }
 
 # Note - must compile with re.VERBOSE option; can't use advanced
 # string formatting because of specified field lengths in regex!
 OUTPUT_FN_REGEX = """
-    (?P<name>\w+)     # Case name
+    (?P<name>\w+)    # Case name
     .
     (?P<comp>%s)\d?  # Model component - format wildcard, string
     .
@@ -31,7 +31,7 @@ OUTPUT_FN_REGEX = """
     (?P<day>\d{2})?  # Day, if present
     -?
     (?P<time>\d{5})? # Timestamp, if present
-    (.nc)$          # file suffix (netcdf)
+    (.nc)$           # file suffix (netcdf)
 """
 
 def _get_file_list(output_dir, regex_str, years_omit=0):
