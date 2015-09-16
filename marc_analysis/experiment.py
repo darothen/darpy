@@ -155,7 +155,10 @@ class Experiment(object):
         path_bits = self.all_cases()
         for bits in path_bits:
             full_path = os.path.join(root, *bits)
-            assert os.path.exists(full_path)
+            try:
+                assert os.path.exists(full_path)
+            except AssertionError:
+                raise AssertionError("Couldn't find data on path {}".format(full_path))
 
     ## Properties and accessors
 
@@ -219,7 +222,8 @@ class Experiment(object):
 
         extract_variable(self, var, **kwargs)
 
-    def load(self, var, fix_times=False, master=False, **kwargs):
+    def load(self, var, fix_times=False,
+             master=False, master_kwargs={}, **kwargs):
         """ Load the data for a variable into xray Datasets and
         attach the variable and data to the current Experiment.
 
@@ -249,10 +253,7 @@ class Experiment(object):
         var._loaded = True
 
         if master:
-            cmd_dict = dict()
-            if 'new_fields' in kwargs:
-                cmd_dict['new_fields'] = kwargs['new_fields']
-            var.master = create_master(self, var, **cmd_dict)
+            var.master = create_master(self, var, **master_kwargs)
 
         # Attach to current Experiment
         self.__dict__[var.varname] = var

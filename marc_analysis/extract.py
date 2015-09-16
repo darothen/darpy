@@ -129,7 +129,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     """
 
     if isinstance(var, str):
-        from .var_data import CESMVar
+        from .var import CESMVar
         var = CESMVar(var, )
 
     if not save_dir:
