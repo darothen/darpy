@@ -31,6 +31,7 @@ It's especially convenient to name each experimental run after the
 leaf factor.
 
 """
+from __future__ import print_function
 
 import os
 from collections import OrderedDict, Iterable, namedtuple
@@ -174,7 +175,7 @@ class Experiment(object):
         information for this experiment
 
         >>> for case_info in marc_aie.itercases():
-        ...     print case_info
+        ...     print(case_info)
         ('aer', 'aerosol emissions', ['F2000', 'F1850'])
         ('act', 'activation scheme', ['arg_comp', 'arg_min_smax'])
 
@@ -187,7 +188,7 @@ class Experiment(object):
         cases comprising this experiment.
 
         >>> for case in marc_aie.all_cases():
-        ...     print case
+        ...     print(case)
         ('F2000', 'arg_comp')
         ('F1850', 'arg_comp')
         ('F2000', 'arg_min_smax')
@@ -201,11 +202,23 @@ class Experiment(object):
         each case.
 
         >>> for case_vals in marc_aieall_case_vals():
-        ...     print case_vals
+        ...     print(case_vals)
         ['F2000', 'F1850']
         ['arg_comp', 'arg_min_smax']
         """
         return [ self._case_vals[case] for case in self._cases ]
+
+    def get_case_vals(self, case):
+        """ Return a list of strings with the values associated
+        with a particular case.
+
+        Parameters
+        ----------
+        case : str
+            The name of the case to fetch values for.
+
+        """
+        return self._case_vals[case]
 
     def case_path(self, *case_bits):
         """ Return the path to a particular set of case's output from this
