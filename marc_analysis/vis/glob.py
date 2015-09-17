@@ -7,7 +7,8 @@ from cartopy.mpl.gridliner import ( LONGITUDE_FORMATTER,
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from . common import PLOTTYPE_ARGS, infer_cmap_params, check_cyclic
+from . common import ( PLOTTYPE_ARGS, infer_cmap_params, check_cyclic,
+                      get_projection )
 from .. convert import cyclic_dataarray
 
 __all__ = [ 'region_plot', 'global_plot' ]
@@ -51,8 +52,8 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
             raise ValueError("Expected 'projection' to only have 2 values")
         projection, proj_kwargs = projection[0], projection[1]
     else:
-        proj_kwargs = []
-    proj = ccrs.__dict__[projection](*proj_kwargs)
+        proj_kwargs = {}
+    proj = get_projection(projection, **proj_kwargs)
 
     # Was an axis passed to plot on?
     new_axis = ax is None
@@ -149,8 +150,8 @@ def global_plot(data, ax=None, method='contourf', projection='PlateCarree',
             raise ValueError("Expected 'projection' to only have 2 values")
         projection, proj_kwargs = projection[0], projection[1]
     else:
-        proj_kwargs = []
-    proj = ccrs.__dict__[projection](*proj_kwargs)
+        proj_kwargs = {}
+    proj = get_projection(projection, **proj_kwargs)
     # `transform` should be the ORIGINAL coordinate system -
     # which is always a simple lat-lon coordinate system in CESM
     # output

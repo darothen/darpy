@@ -116,6 +116,9 @@ class Experiment(object):
                             for case in self._cases }
         self._casenames = { case: self._case_data[case].longname \
                             for case in self._cases }
+        # Add cases to this instance for "Experiment.[case]" access
+        for case, vals in self._case_vals.items():
+            setattr(self.__class__, case, vals)
 
         if not naming_case:
             self.naming_case = self._cases[-1]
@@ -174,7 +177,7 @@ class Experiment(object):
         """ Generator for iterating over the encapsulated case
         information for this experiment
 
-        >>> for case_info in marc_aie.itercases():
+        >>> for case_info in marc_analysis.itercases():
         ...     print(case_info)
         ('aer', 'aerosol emissions', ['F2000', 'F1850'])
         ('act', 'activation scheme', ['arg_comp', 'arg_min_smax'])
@@ -187,7 +190,7 @@ class Experiment(object):
         """ Return an iterable of all the ordered combinations of the
         cases comprising this experiment.
 
-        >>> for case in marc_aie.all_cases():
+        >>> for case in marc_analysis.all_cases():
         ...     print(case)
         ('F2000', 'arg_comp')
         ('F1850', 'arg_comp')
@@ -201,7 +204,7 @@ class Experiment(object):
         """ Return a list of lists which contain all the values for
         each case.
 
-        >>> for case_vals in marc_aieall_case_vals():
+        >>> for case_vals in marc_analysis.all_case_vals():
         ...     print(case_vals)
         ['F2000', 'F1850']
         ['arg_comp', 'arg_min_smax']

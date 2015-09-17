@@ -1,4 +1,6 @@
 
+import cartopy.crs as ccrs
+
 from matplotlib.colors import from_levels_and_colors, Normalize
 from matplotlib.pyplot import get_cmap, colorbar, savefig
 import matplotlib.patches as mpatches
@@ -12,13 +14,21 @@ import xray
 from .. convert import cyclic_dataarray
 
 __all__ = [ 'add_colorbar', 'make_colors', 'save_figure',
-            'infer_cmap_params', ]
+            'infer_cmap_params', 'get_projection' ]
 
 PLOTTYPE_ARGS = {
     'pcolormesh': dict(linewidth='0'),
     'pcolor': dict(linewidth='0'),
     'contourf': dict(extend='both'),
 }
+
+def get_projection(name, **kwargs):
+    """ Instantiate a Cartopy coordinate reference system for
+    constructing a GeoAxes object.
+
+    """
+    return ccrs.__dict__[name](**kwargs)
+
 
 def check_cyclic(data, coord='lon'):
     """ Checks if a DataArray already includes a cyclic point along the
@@ -126,9 +136,64 @@ def make_colors(levels, coloring, cmap):
     return cmap, norm
 
 
-def add_colorbar(ax, mappable):
-    """ Add a colorbar into an existing axis. """
-    cb = colorbar(mappable, ax=ax, pad=0.075, orientation='horizontal')
+def add_colorbar(mappable, fig=None, ax=None, thickness=0.025,
+                 shrink=0.1, pad=0.05, orientation='horizontal'):
+    """ Add a colorbar into an existing axis or figure. Need to pass
+    either an Axis or Figure element to the appropriate keyword
+    argument. Should elegantly handle multi-axes figures.
+
+    Parameters
+    ----------
+    mappable : mappable
+        The element set with data to tailor to the colorbar
+    fig : Figure
+    ax: Axis
+    thickness: float
+        The width/height of the colorbar in fractional figure area,
+        given either vertical/horizontal orientation.
+    shrink: float
+        Fraction of the width/height of the figure to leave blank
+    pad : float
+        Padding between bottom/right subplot edge and the colorbar
+    orientation : str
+        The orientation of the colorbar
+
+    """
+    if (fig is None) and (ax is None):
+        raise ValueError("Must pass either 'fig' or 'ax'")
+    elif fig is None:
+        # Plot on Axis
+        cb = colorbar(mappable, ax=ax, pad=pad, orientation=orientation)
+    else:
+        # Plot onto Figure's set of axes
+        axes = fig.get_axes()
+
+        # Get coordinates for making the colorbar
+        ul = axes[0]
+        lr = axes[-1]
+        top = ul.get_position().get_points()[1][1]
+        bot = lr.get_position().get_points()[0][1]
+        right = lr.get_position().get_points()[1][0]
+        left = ul.get_position().get_points()[0][0]
+
+        # Calculate colorbar positioning and geometry
+        if orientation ==  'vertical':
+            cb_left = right + pad
+            cb_width = thickness
+            cb_bottom = bot + shrink
+            cb_height = (top - shrink) - cb_bottom
+        elif orientation == 'horizontal':
+            cb_left = left + shrink
+            cb_width = (right - shrink) - cb_left
+            cb_height = thickness
+            cb_bottom = (bot - pad) - cb_height
+        else:
+            raise ValueError("Uknown orientation '%s'" % orientation)
+
+        cax = fig.add_axes([cb_left, cb_bottom,
+                            cb_width, cb_height])
+        cb = fig.colorbar(mappable, cax=cax, orientation=orientation)
+
     return cb  
     
 def set_title(ax, varname, units, l=None, r=None):
