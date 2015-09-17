@@ -3,13 +3,16 @@ from matplotlib.colors import from_levels_and_colors, Normalize
 from matplotlib.pyplot import get_cmap, colorbar, savefig
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+from seaborn.apionly import color_palette
 
 import numpy as np
 import pandas as pd
+import xray
 
 from .. convert import cyclic_dataarray
 
-__all__ = [ 'add_colorbar', 'make_colors', 'save_figure' ]
+__all__ = [ 'add_colorbar', 'make_colors', 'save_figure',
+            'infer_cmap_params', ]
 
 PLOTTYPE_ARGS = {
     'pcolormesh': dict(linewidth='0'),
@@ -239,9 +242,9 @@ def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
 
     return leg
 
-def determine_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
-                          center=None, robust=False, extend=None,
-                          levels=None, filled=True, cnorm=None):
+def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
+                      center=None, robust=False, extend=None,
+                      levels=None, filled=True, cnorm=None):
     """
     Use some heuristics to set good defaults for colorbar and range.
 
@@ -253,8 +256,20 @@ def determine_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
 
     Parameters
     ----------
-    plot_data: Numpy array
-        Doesn't handle xray objects
+    plot_data : Numpy array or DataArray
+    vmin, vmax : floats
+        Minimum and maximum value for coloring
+    cmap : str
+        Name of color map from matplotlib or seaborn
+    center : float
+        Value to fix at center of coloring scheme
+    robust : bool (default = False)
+        Infer maximum and minimum using a percentile estimate over all
+        the data
+    levels : int or iterable of floats
+        Either the number of levels to use or the values of all the
+        level demarcations
+
 
     Returns
     -------
@@ -265,6 +280,9 @@ def determine_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
     ROBUST_PERCENTILE = 2.0
     import matplotlib as mpl
 
+    # Unpack DataArray -> numpy array
+    if isinstance(plot_data, xray.DataArray):
+        plot_data = plot_data.values
     calc_data = np.ravel(plot_data[~pd.isnull(plot_data)])
 
     if vmin is None:
@@ -318,6 +336,8 @@ def determine_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
                 levels=levels, cnorm=cnorm)
 
 def _determine_extend(calc_data, vmin, vmax):
+    """ Infer the "extend" parameter based on the settings of
+    vmin and vmax """
     extend_min = calc_data.min() < vmin
     extend_max = calc_data.max() > vmax
     if extend_min and extend_max:
@@ -363,22 +383,12 @@ def _color_palette(cmap, n_colors):
     colors_i = np.linspace(0, 1., n_colors)
     if isinstance(cmap, (list, tuple)):
         # we have a list of colors
-        try:
-            # first try to turn it into a palette with seaborn
-            from seaborn.apionly import color_palette
-            pal = color_palette(cmap, n_colors=n_colors)
-        except ImportError:
-            # if that fails, use matplotlib
-            # in this case, is there any difference between mpl and seaborn?
-            cmap = ListedColormap(cmap, N=n_colors)
-            pal = cmap(colors_i)
+        pal = color_palette(cmap, n_colors=n_colors)
     elif isinstance(cmap, str):
         # we have some sort of named palette
         try:
-            # first try to turn it into a palette with seaborn
-            from seaborn.apionly import color_palette
             pal = color_palette(cmap, n_colors=n_colors)
-        except (ImportError, ValueError):
+        except ValueError:
             # ValueError is raised when seaborn doesn't like a colormap (e.g. jet)
             # if that fails, use matplotlib
             try:

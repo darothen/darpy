@@ -7,7 +7,7 @@ from cartopy.mpl.gridliner import ( LONGITUDE_FORMATTER,
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 
-from . common import PLOTTYPE_ARGS, make_colors, check_cyclic
+from . common import PLOTTYPE_ARGS, infer_cmap_params, check_cyclic
 from .. convert import cyclic_dataarray
 
 __all__ = [ 'region_plot', 'global_plot' ]
@@ -101,10 +101,9 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
 
     return ax
 
-def global_plot(data, ax=None, levels=None, 
-                cmap='cubehelix_r', method='contourf',
-                coloring='discrete', projection='PlateCarree',
-                grid=False, check_coords=False, plot_kws={}):
+def global_plot(data, ax=None, method='contourf', projection='PlateCarree',
+                grid=False, check_coords=False,
+                cmap_kws={}, plot_kws={}):
     """ Create a global plot of a given variable.
 
     Parameters:
@@ -113,14 +112,8 @@ def global_plot(data, ax=None, levels=None,
         The data to be plotted.
     ax : axis
         An existing axis instance, else one will be created.
-    levels : arraylike of floats
-        User-defined levels for colorbars.
-    cmap : str
-        String to use for looking up colormap.
     method : str
-        String to use for looking up name of plotting function via iris 
-    coloring : str
-        Either 'continuous' or 'discrete' coloring option.
+        String to use for looking up name of plotting function via iris
     projection : str or tuple
         Name of the cartopy projection to use and any args
         necessary for initializing it passed as a dictionary
@@ -201,17 +194,13 @@ def global_plot(data, ax=None, levels=None,
         print("Could not label the given map projection.")
 
     ## Plot data
-    if levels is None:
-        gp = plot_func(data.lon.values, data.lat.values, data.data,
-                       cmap=plt.get_cmap(cmap), **extra_args)
+    # Infer colormap settings if not provided
+    if not cmap_kws:
+        cmap_kws = infer_cmap_params(data.data)
+    extra_args.update(cmap_kws)
 
-    else:
-        cmap, norm = make_colors(levels, coloring, cmap)
-
-        if method == 'contourf': extra_args['levels'] = levels
-        if method == 'pcolormesh': extra_args['norm'] = norm 
-        gp = plot_func(data.lon.values, data.lat.values, data.data,
-                       cmap=cmap, **extra_args)
+    gp = plot_func(data.lon.values, data.lat.values, data.data,
+                   **extra_args)
 
     if new_axis:
         return ax, gp
