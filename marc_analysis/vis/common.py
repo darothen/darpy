@@ -372,7 +372,7 @@ def _color_palette(cmap, n_colors):
             # in this case, is there any difference between mpl and seaborn?
             cmap = ListedColormap(cmap, N=n_colors)
             pal = cmap(colors_i)
-    elif isinstance(cmap, basestring):
+    elif isinstance(cmap, str):
         # we have some sort of named palette
         try:
             # first try to turn it into a palette with seaborn

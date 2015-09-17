@@ -35,8 +35,8 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
     figsize : tuple, optional
         The figure size. Defaults to (12, 5)
     projection : str or tuple
-        Name of the cartopy projection to use and any args necessary
-        for initializing it.
+        Name of the cartopy projection to use and any kwargs necessary
+        for initializing it passed as a dictionary
 
     Returns:
     --------
@@ -47,10 +47,12 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
 
     # Set up map projection information
     if isinstance(projection, (list, tuple)):
-        projection, proj_args = projection[0], projection[1:]
+        if len(projection) != 2:
+            raise ValueError("Expected 'projection' to only have 2 values")
+        projection, proj_kwargs = projection[0], projection[1]
     else:
-        proj_args = []
-    proj = ccrs.__dict__[projection](*proj_args)
+        proj_kwargs = []
+    proj = ccrs.__dict__[projection](*proj_kwargs)
 
     # Was an axis passed to plot on?
     new_axis = ax is None
@@ -121,7 +123,7 @@ def global_plot(data, ax=None, levels=None,
         Either 'continuous' or 'discrete' coloring option.
     projection : str or tuple
         Name of the cartopy projection to use and any args
-        necessary for initializing it
+        necessary for initializing it passed as a dictionary
     grid : bool
         Include lat-lon grid verlay
     check_coords : bool
@@ -150,10 +152,12 @@ def global_plot(data, ax=None, levels=None,
     
     # Set up map projection information
     if isinstance(projection, (list, tuple)):
-        projection, proj_args = projection[0], projection[1:]
+        if len(projection) != 2:
+            raise ValueError("Expected 'projection' to only have 2 values")
+        projection, proj_kwargs = projection[0], projection[1]
     else:
-        proj_args = []
-    proj = ccrs.__dict__[projection](*proj_args)
+        proj_kwargs = []
+    proj = ccrs.__dict__[projection](*proj_kwargs)
     # `transform` should be the ORIGINAL coordinate system -
     # which is always a simple lat-lon coordinate system in CESM
     # output
@@ -169,7 +173,7 @@ def global_plot(data, ax=None, levels=None,
 
     if new_axis:
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection=extra_args['transform'])
+        ax = fig.add_subplot(111, projection=proj)
     else: # Set current axis to one passed as argument
         plt.sca(ax)
 
