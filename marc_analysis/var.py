@@ -318,8 +318,7 @@ class Var(object):
         if hasattr(self, "units"):
             out += " [%s]" % self.units
         if self._loaded:
-            act, aer = self._cases['act'][0], self._cases['aer'][0]
-            data_type = type(self._data[act, aer]).__name__
+            data_type= type(next(iter(self.data.values()))).__name__
             out += "\n[ loaded -> %s(%r)]" % (data_type, self._cases)
         
         if not (self.oldvar == self.varname):
