@@ -77,7 +77,7 @@ def _get_file_list(output_dir, regex_str, years_omit=0):
     # Determine 0th year and extract all years beyond 0th year + years_omit
     year0 = files_df.iloc[0].year
     year_start = year0 + years_omit
-    filtered_files = (files_df[files_df['year'] > 0]
+    filtered_files = (files_df[files_df['year'] >= year_start]
                          .filename
                          .tolist())
 
@@ -185,6 +185,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
 
         # pre-pend path
         file_list = [ os.path.join(path_to_data, fn) for fn in file_list ]
+        print("      Found {} files".format(len(file_list)))
         in_file = " ".join(file_list)
 
         out_file = os.path.join(save_dir, fn_extr)
