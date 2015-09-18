@@ -137,8 +137,8 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
 
     print()
     print("---------------------------------")
-    print("Processing %s from CESM output" %  var.oldvar)
-    print("   experiment: %s" % exp.name)
+    print("Processing {} from CESM output".format(var.oldvar))
+    print("   experiment: {} ".format(exp.name))
     print("   for cases:")
     for case, case_name, case_vals in exp.itercases():
         print("      %s (%s) - %r" % (case_name, case, case_vals))

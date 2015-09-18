@@ -13,7 +13,7 @@ data archives.
 """
 
 __all__ = ['get_cesm_vars', 'VarList', 'Var',
-           'CDOVar', 'CESMVar', 'MultiVar']
+           'CDOVar', 'CESMVar', 'MultiVar', 'common_vars', ]
 
 _TAB = "    "
 _CESM_VARS = None
@@ -586,6 +586,28 @@ class CESMVar(Var):
 #     def default(cls):
 #         return VarArchive(_VAR_ARCHIVE)
 
+class common_vars:
+
+    CDNC_col = CESMVar("CDNC_col", "CDNUMC",
+                       long_name="Total Column CDNC",
+                       units='10^6 cm^-2', scale_factor=1e-4*1e-6)
+    CF = CESMVar("CLDTOT", long_name="Total Cloud Fraction")
+    # COT = CESMVar("COT", "TOT_ICLD_VISTAU")
+    # COT = CDOVar("COT", lev_bnds=[23,30], cdo_method=['vertsum', ],
+    #              long_name="In-cloud low-cloud optical thickness")
+    LWP = CESMVar("TGCLDLWP")
+    PRECL = CESMVar("PRECL",
+                    long_name="Total large-scale precipitation",
+                    scale_factor=1e3*3600.*24., units="mm/day")
+    PRECIP = Var("PRECIP", ("PRECC", "PRECL"),
+                  long_name="Total precipitation",
+                  scale_factor=1e3*3600.*24., units="mm/day")
+    SWCF = CESMVar("SWCF")
+    TS = CESMVar("TS", long_name="Near-surface Temperature")
+
+
+
+
 
 # BASE_VARS = [
 #     CESMVar("AREL", "Average droplet effective radius", "micron"),
@@ -617,37 +639,4 @@ class CESMVar(Var):
 # #     CDOVar.low_var(v for v )
 # # }
 # # ]
-
-
-
-
-#     ## METEOROLOGY PROPERTIES
-#     Var("PRECL", "PRECL", 
-#         {"long_name": "Large-scale precipitation",
-#          "units": "mm/day",
-#          "scale_factor": 86400000.0 },
-#         None, [], None),      
-#     Var("U10", "U10", 
-#         {"long_name": "Windspeed at 10m",
-#          "units": "m/s",} ,
-#         None, [], None),      
-#     Var("TS", "TS", 
-#         {"long_name": "Temperature at surface (radiative)",
-#          "units": "K",} ,
-#         None, [], None),      
-#     Var("T850", "T850", 
-#         {"long_name": "Temperature at 850mb",
-#          "units": "K",} ,
-#         None, [], None),
-
-#     ## RADIATIVE PROPERTIES
-#     Var("SWCF", "SWCF", 
-#         {"long_name": "Cloud shortwave forcing",
-#          "units": "W/m2" },
-#         None, [], None),
-#     Var("LWCF", "LWCF", 
-#         {"long_name": "Cloud Longwave forcing",
-#          "units": "W/m2" },
-#         None, [], None),
-# ]
 
