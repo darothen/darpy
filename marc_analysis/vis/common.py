@@ -13,8 +13,6 @@ import xray
 
 from .. convert import cyclic_dataarray
 
-__all__ = [ 'add_colorbar', 'make_colors', 'save_figure',
-            'infer_cmap_params', 'get_projection' ]
 
 PLOTTYPE_ARGS = {
     'pcolormesh': dict(linewidth='0'),
@@ -194,9 +192,60 @@ def add_colorbar(mappable, fig=None, ax=None, thickness=0.025,
                             cb_width, cb_height])
         cb = fig.colorbar(mappable, cax=cax, orientation=orientation)
 
-    return cb  
-    
-def set_title(ax, varname, units, l=None, r=None):
+    return cb
+
+def multipanel_figure(nrow, ncol, aspect=16./10., size=3.,
+                      cbar_space=1., cbar_orientation='vertical',
+                      **subplot_kw):
+    """ Generate a Figure with subplots tuned to a user-specified
+    grid and plot size. The Figure's tight_layout() method will
+    automatically be wrapped to correctly set the inter-plot padding
+
+    Parameters
+    ----------
+    nrow, ncol : float
+        The number of rows and columns in the grid
+    aspect : float, optional
+        Aspect ratio of each subplot, so that ``aspect * size`` gives
+        the width of each subplot in inches
+    size : float, optional
+        Height (in inches) of each subplot
+    cbar_space : float (optional)
+        Extra space (in inches) to add to figure for colorbar.
+    cbar_orientation : str, 'horizontal' or 'vertical'
+        Designation for orientation of potential colorbar
+    **kwargs : dict
+        Any additional keyword arguments to pass to ``plt.subplots()``
+
+    Returns
+    -------
+    fig, axes : matplotlib.fig.Figure object and list of axes objects
+
+    """
+
+    # Compute figure sizing
+    fig_width = ncol * size * aspect
+    fig_height = nrow * size
+
+    if cbar_orientation == 'vertical':
+        fig_width += cbar_space
+    else:
+        fig_height += cbar_space
+
+    default_subplot_kw = dict(aspect='auto')
+    default_subplot_kw.update(subplot_kw)
+
+    fig, axes = plt.subplots(nrow, ncol, figsize=(fig_width, fig_height),
+                             sharex=True, sharey=True, squeeze=False,
+                             subplot_kw=default_subplot_kw)
+
+    # Slightly tweak spacing between subplots
+    fig.subplots_adjust(hspace=0.3, wspace=0.2)
+
+    return fig, axes
+
+
+def set_title(ax, varname="", units="", l=None, r=None):
     """ Adds potentially two titles to a plot, including
     the variable name with units on the left, and if provided,
     the source or difference source on the right.
