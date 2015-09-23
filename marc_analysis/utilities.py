@@ -17,7 +17,6 @@ def get_git_versioning():
     return check_output(
         ['git', 'rev-parse', '--short', 'HEAD']
     ).strip()
-_GIT_COMMIT = get_git_versioning()
 
 def get_timestamp(time=True, date=True, fmt=None):
     """ Return the current timestamp in machine local time.
@@ -123,7 +122,7 @@ def preserve_attrs(func):
 
 def decompose_multikeys(keys):
     """ Given a list of keys that are all tuples representing
-    multi-indices or multikeys, returns the sets of key 
+    multi-indices or multikeys, returns the sets of key
     components used to create them.
 
     Example, using `itertools.product()`::
@@ -201,7 +200,7 @@ def area_grid(lon, lat, asarray=False):
     Parameters
     ----------
     lon, lat : array-like of floats
-        Arrays containing the longitude and latitude values 
+        Arrays containing the longitude and latitude values
         of the given grid.
     asarray : Boolean
         Return an array instead of DataArray object
@@ -213,7 +212,7 @@ def area_grid(lon, lat, asarray=False):
         area (in m^2) of each cell on the grid.
 
     """
-    
+
     #: Earth's radius (m)
     R_EARTH = 6375000.
 
@@ -230,14 +229,14 @@ def area_grid(lon, lat, asarray=False):
     dlat  = np.abs(np.mean(lat_arr[1:]-lat_arr[:-1]))*np.pi/180.
     # convert latitudes from -90,90 -> -180, 0 and then to radians
     theta = (90. - lat_arr)*np.pi/180.
-    
+
     areas = np.zeros([nlon, nlat])
     for lat_i in range(nlat):
         for lon_i in range(nlon):
-        
+
             lat1 = theta[lat_i] - dlat/2.
             lat2 = theta[lat_i] + dlat/2.
-        
+
             if (theta[lat_i] == 0) or (theta[lat_i] == np.pi):
                 areas[lon_i, lat_i] = (R_EARTH**2.) \
                                      *np.abs(  np.cos(dlat/2.) \
@@ -273,7 +272,7 @@ def latitude_weights(lats):
     """ Compute the 'gauss weights' for computed area-weighted
     averages of CESM output data. These can be applied over
     the latitude axis of any output, as you would do with the
-    'gw' field in the normal history tapes. 
+    'gw' field in the normal history tapes.
 
     Parameters
     ----------
@@ -404,11 +403,11 @@ def create_arg_parser(valid_vars=None, var_groups=None):
 
     ## Optional parts
     if valid_vars:
-        parser.add_argument("--vars", type=str, default=valid_vars, 
+        parser.add_argument("--vars", type=str, default=valid_vars,
                             choices=valid_vars, nargs="+",
                             help="Subset from valid vars, else extract all")
     if var_groups:
-        parser.add_argument("--groups", type=str, default=var_groups, 
+        parser.add_argument("--groups", type=str, default=var_groups,
                             choices=var_groups, nargs="+",
                             help="Subset from valid variable groups, else extract all")
 

@@ -2,7 +2,7 @@ import os, re
 from pandas import DataFrame
 from subprocess import call
 
-from . utilities import _GIT_COMMIT, remove_intermediates, cdo_func
+from . utilities import remove_intermediates, cdo_func, get_git_versioning
 
 __all__ = ['extract_variable', ]
 
@@ -248,7 +248,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
             att_list = [
                 "-a", "years_omit,global,o,i,%d" % (int(years_omit), ),
                 "-a", "years_offset,global,o,i,%d" % (int(years_offset), ),
-                "-a", "git_commit,global,o,c,%s" % _GIT_COMMIT,
+                "-a", "git_commit,global,o,c,%s" % get_git_versioning(),
             ]
             if hasattr(var, 'attributes'):
                 print("      modifying var attributes")
