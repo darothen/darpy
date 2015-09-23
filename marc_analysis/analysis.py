@@ -76,8 +76,8 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
     [David Stepaniak's **zmmsf.ncl**][zmmsf.ncl] script, and I've
     re-implemented that here.
 
-    For consistency with the analyses in the AMWG diagnostics and in papers 
-    such as Ming et el (2011), we should apply time averaging *before* 
+    For consistency with the analyses in the AMWG diagnostics and in papers
+    such as Ming et el (2011), we should apply time averaging *before*
     calculating $ \Psi $.
 
     [zonal_mpsi_ncl]: https://www.ncl.ucar.edu/Document/Functions/Built-in/zonal_mpsi.shtml
@@ -99,9 +99,9 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
         if not (field in ds):
             raise KeyError('Expected to find key "%s" in dataset'
                            % field)
-        
+
     # Transpose some dimensions (move to front) to facilitate
-    # vertical integration in vector form 
+    # vertical integration in vector form
     v_wind = shuffle_dims(ds['V'], ['lev', 'lat'])
     ps = shuffle_dims(ds['PS'], ['lat', ]) # in Pa already
 
@@ -118,7 +118,7 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
     else:
         pres = v_wind.lev*100. # hPa -> Pa
     # print(pres)
-        
+
     # Mapping pressure levels and interfaces
     ptmp = np.zeros([2*nlev+1, ] + list(pres.shape[1:]))
     ptmp[0] = ptop # Pa
@@ -149,22 +149,22 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
 
         integrand = c * np.transpose(vtmp[klvl]*dp[klvl])
         psitmp[klvl+1] = psitmp[klvl-1] - np.transpose(integrand)
-        
+
     # Second loop to apply boundary condition to bottom of atmosphere, where
     # below-ground interfaces are changed to reflection points.
     bad_points = []
     for klvl in range(1, 2*nlev, 2):
-        if np.any(ptmp[klvl] > ps): 
+        if np.any(ptmp[klvl] > ps):
             iinds, jinds = np.where(ptmp[klvl] > ps)
             # for k in ind_iter: print(k.shape)
             for (ilat, jlon) in zip(iinds, jinds):
                 if (ilat, jlon) in bad_points: continue
-                
+
                 psitmp[klvl+1, ..., ilat, jlon] = \
                     -1.*psitmp[klvl-1, ..., ilat, jlon]
                 psitmp[klvl+2:, ..., ilat, jlon] = np.nan
                 bad_points.append((ilat, jlon))
-                    
+
     # psi on pressure levels = average of surrounding interfaces
     psitmp[1::2] = 0.5*(psitmp[2::2] + psitmp[0:-2:2])
     # Fix sign convention
@@ -240,8 +240,10 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
 
     """
 
-    if weights is None:
+    if weights is None: # Compute gaussian weights in latitude
         weights = area_grid(data.lon, data.lat)
+        gw = weights.sum('lon')
+        weights = 2.*gw/gw.sum('lat')
 
     if isinstance(data, DataArray):
 
@@ -251,7 +253,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
 
         # return np.average(data, weights=weights)
         # return np.sum(data*weights)/np.sum(weights)
-        return (data*weights/weights.sum(dims)).sum(dims)
+        return (data*weights/weights.sum()).sum(dims)
 
     elif isinstance(data, Dataset):
 
