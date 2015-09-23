@@ -37,7 +37,7 @@ def get_cesm_vars(reextract=True):
 
     return CESM_vars_dict
 
-def _extract_cesm_vars(nc_filename, out="CESM_defualt_vars.p"):
+def _extract_cesm_vars(nc_filename, out="CESM_default_vars.p"):
     """ Extract all the CESM variables and their metadata from 
     a given dataset. """
     import netCDF4 as nc
@@ -48,7 +48,7 @@ def _extract_cesm_vars(nc_filename, out="CESM_defualt_vars.p"):
     print("... found %d variables" % (len(all_vars), ))
 
     with open(out, 'wb') as f:
-        pickle.dump(all_vars, f)
+        pickle.dump(all_vars, f, protocol=2)
     print("done. Saved to %s" % out)
 
 def print_cesm_vars():
