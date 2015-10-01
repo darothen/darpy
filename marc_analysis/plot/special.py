@@ -13,7 +13,7 @@ from matplotlib.ticker import MaxNLocator
 
 from .. utilities import area_grid
 from .. analysis import min_max_cubes, global_avg
-from . glob import global_plot
+# from . glob import global_plot
 
 __all__ = [ 'pd_vs_pi_summary', ]
 

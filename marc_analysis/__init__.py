@@ -14,6 +14,6 @@ from . experiment import *
 from . extract import *
 from . io import *
 from . var import *
-from . vis import *
+from . plot import *
 from . convert import *
 from . utilities import *

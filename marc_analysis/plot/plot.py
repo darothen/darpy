@@ -1,9 +1,11 @@
+
 """
 Plotting functions. Recommended to use this module directly by
 importing:
     import marc_analysis.plot as maplt
 
 """
+
 import functools
 import inspect
 import warnings
@@ -17,8 +19,9 @@ from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
+import seaborn as sns
 
-from . common import PLOTTYPE_ARGS, infer_cmap_params, check_cyclic, get_projection, make_geoaxes
+from . common import *
 from .. convert import cyclic_dataarray
 
 ## 1D PLOTS
@@ -54,9 +57,16 @@ def line_plot(darray, dim=None, ax=None, **kwargs):
             lab_str += " [{}]".format(darray.units)
         ax.set_ylabel(lab_str)
 
+    # If this is a zonal plot (latitude is the dimension),
+    # Do some additional plot tweaking
+    if dim == 'lat':
+        ax = format_zonal_axis(ax)
+
     # Format dates on xlabels if necessary
     if np.issubdtype(x.dtype, np.datetime64):
         plt.gcf().autofmt_xdate()
+
+    sns.despine(offset=10)
 
     return ax, lp
 
@@ -93,7 +103,7 @@ def infer_x_y(darray, x=None, y=None):
 
     # Infer 'y' from whatever is left in dims if necessary
     if (y is None):
-        y = dims.difference(user_dims)
+        y = dims.difference(user_dims).pop()
 
     if not (x is None) and not (y is None):
         return x, y
@@ -105,13 +115,13 @@ def infer_x_y(darray, x=None, y=None):
     if dims == set(['lon', 'lat']):
         return 'lon', 'lat'
     elif 'lon' in dims:
-        y = dims.difference(['lon', ])
+        y = dims.difference(['lon', ]).pop()
         return 'lon', y
     elif 'lat' in dims:
-        y = dims.difference(['lat', ])
+        y = dims.difference(['lat', ]).pop()
         return 'lat', y
     elif 'lev' in dims:
-        x = dims.difference(['lev', ])
+        x = dims.difference(['lev', ]).pop()
         return x, 'lev'
     else:
         return list(dims)
@@ -200,6 +210,83 @@ def geo_plot(darray, ax=None, method='contourf',
 
     return ax, gp
 
+
+def vertical_plot(darray, ax=None, method='contourf', top=100., log_vert=False,
+                  grid=False, **kwargs):
+    """ Create a contour plot of a given variable with the vertical dimension
+    on the y-axis.
+
+    Parameters
+    ----------
+    darray : xray.Dataset or xray.DataArray
+        The data to be plotted.
+    ax : axis
+        An existing axis instance, else one will be created.
+    top : float, defaults to 100.
+        Cut-off for y-axis plot limits
+    grid : bool
+        Include lat-lon grid overlay
+    grid : bool
+        Include lat-lon grid overlay
+    plot_kws : dict
+        Any additional keyword arguments to pass to the plotter.
+
+    """
+
+    # Set up plotting function
+    if method in PLOTTYPE_ARGS:
+        extra_args = PLOTTYPE_ARGS[method].copy()
+    else:
+        raise ValueError("Don't know how to deal with '%s' method" % method)
+    extra_args.update(**kwargs)
+
+    # Alias a plot function based on the requested method and the
+    # datatype being plotted
+    plot_func = plt.__dict__[method]
+
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+    else: # Set current axis to one passed as argument
+        plt.sca(ax)
+
+
+    # Infer colormap settings if not provided
+    if not ('vmin' in kwargs):
+        cmap_kws = infer_cmap_params(darray.data)
+        extra_args.update(cmap_kws)
+
+    # Plot data
+    x_dim = set(darray.dims).difference(['lev', ]).pop()
+    xvals, yvals = darray.indexes[x_dim].values, darray.indexes['lev'].values
+    zvals = darray.to_masked_array(copy=False)
+
+    zvp = plot_func(xvals, yvals, zvals, **extra_args)
+
+    # X-Axis
+    if x_dim == 'lat':
+        ax = format_zonal_axis(ax)
+    elif x_dim == 'time':
+        # ax = format_time_axis(ax)
+        pass
+
+    # Y-axis
+    if log_vert:
+        ax.set_yscale('log')
+
+        # Some nice tick labeling utilities from matplotlib
+        from matplotlib.ticker import FormatStrFormatter, MaxNLocator
+        ax.yaxis.set_major_formatter(
+            FormatStrFormatter("%d")
+        )
+        ax.yaxis.set_major_locator(MaxNLocator(10))
+    ax.set_ylim(1000, top)
+    ax.set_ylabel("Pressure (hPa)")
+
+    if grid:
+        plt.grid(linewidth=0.5, color='grey', alpha=0.8)
+
+    return ax, zvp
 
 
 def region_plot(regions, ax=None, colors=None, only_regions=False,
@@ -293,9 +380,6 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
 def hovmoller_plot():
     raise NotImplementedError()
 
-def vertical_plot():
-    raise NotImplementedError()
-
 
 def default_plot(x, y, z, ax, **kwargs):
     """
@@ -359,8 +443,8 @@ def plot2d(darray, x=None, y=None, ax=None,
     plotfunc = default_plot
 
     x, y = infer_x_y(darray, x, y)
-    xvals = darray[x].values
-    yvals = darray[y].values
+    xvals = darray.indexes[x].values
+    yvals = darray.indexes[y].values
     zvals = darray.to_masked_array(copy=False)
 
     try:

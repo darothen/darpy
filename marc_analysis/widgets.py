@@ -11,7 +11,7 @@ from IPython.html import widgets
 from IPython.display import clear_output, display
 
 from . utilities import area_grid
-from . vis import save_figure, pd_vs_pi_summary
+from . plot import save_figure, pd_vs_pi_summary
 
 def four_panel_horizontal(var, src_dir=WORK_DIR,
                           extract=True, extr_kwargs={},

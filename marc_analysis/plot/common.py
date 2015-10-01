@@ -1,4 +1,6 @@
 
+# -*- coding: utf-8 -*-
+
 import cartopy.crs as ccrs
 
 from matplotlib.colors import from_levels_and_colors, Normalize
@@ -19,6 +21,23 @@ PLOTTYPE_ARGS = {
     'pcolor': dict(linewidth='0'),
     'contourf': dict(extend='both'),
 }
+
+def format_zonal_axis(ax, axis='x'):
+    """ Properly format an axis with latitude labels. """
+    if axis == 'x':
+        set_labels(ax,
+                   xlabel="Latitude (°N)")
+
+        ax.set_xlim(-90, 90)
+        ax.set_xticks([-90, -60, -30, 0, 30, 60, 90])
+    else:
+        set_labels(ax,
+                   ylabel="Latitude (°N)")
+
+        ax.set_ylim(-90, 90)
+        ax.set_yticks([-90, -60, -30, 0, 30, 60, 90])
+
+    return ax
 
 def make_geoaxes(projection='PlateCarree'):
     """ Create a GeoAxes mapping object.
