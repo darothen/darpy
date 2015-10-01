@@ -1,0 +1,16 @@
+name: marc_analysis
+channels:
+  - unidata
+  - scitools
+  - darothen
+dependencies:
+  - cartopy>=0.12
+  - dask
+  - jupyter
+  - matplotlib
+  - netcdf4
+  - numpy
+  - python=3.4
+  - seaborn>=0.6
+  - xlrd
+  - xray>=0.6

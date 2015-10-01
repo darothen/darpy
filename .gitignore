@@ -9,6 +9,10 @@
 
 # Notebooks - need to add them manually
 *.ipynb
+.ipynb_checkpoints
 
 # PyCharm files
 .idea/*
+
+# Package-specific files
+marc_analysis/version.py

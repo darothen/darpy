@@ -4,15 +4,34 @@ Source code repository for toolkit and analyses/exploration of a CESM/MARC exper
 
 ## Toolkit Overview
 
-## Dependencies
 
-- Python >= 3.1
-- [netCDF Operators](http://nco.sourceforge.net/) - command line tools for processing netCDF files
+## Installation
+
+Because this package builds on several widely-available toolkits, a conda environment is provided via `environment.yml` to manage its Python dependencies. To install, execute from the shell
+
+```
+$ conda env create -f environment.yml
+```
+
+This will create a `marc_analysis` environment separate from your normal Python installation. This environment should be activated whenever you wish to use the toolkit. Then, we recommend installing the actual `marc_analysis` toolkit as an ["editable" installation](http://pip-python3.readthedocs.org/en/latest/reference/pip_install.html#editable-installs) into the `marc_analysis` environment:
+
+```
+$ source activate marc_analysis
+(marc_analysis) $ pip install -e path/to/marc_analysis
+```
+
+### Python Dependencies
+
+- Python >= 3.4
 - [cartopy >= 0.12](http://scitools.org.uk/cartopy/docs/latest/) - visualization of maps and cartographic/geographic datasets
-- [xray >= 0.5.2](http://xray.readthedocs.org) - package for manipulating structured data like NetCDF
+- [xray >= 0.6](http://xray.readthedocs.org) - package for manipulating structured data like NetCDF
 - seaborn - wrapper for matplotlib with fantastic aesthetic configuration and multi-factor plot analyses/layouts
 - matplotlib
 - numpy
+
+### Other Dependencies
+
+- [netCDF Operators](http://nco.sourceforge.net/) - command line tools for processing netCDF files
 
 ## Usage
 
@@ -88,3 +107,7 @@ From there on, you can analyze and process the variables. But all the boilerplat
 5. Implement logging module instead of printing to console so that messages can be suppressed when desired
 
 6. Context manager functionality so that you don't have to constantly pass the experiemnt argument when extracting / loading a variable
+
+7. Build conda package for NCO, add to environment
+
+8. Lazy open from simulation archive without extracting?
