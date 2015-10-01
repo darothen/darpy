@@ -20,6 +20,37 @@ PLOTTYPE_ARGS = {
     'contourf': dict(extend='both'),
 }
 
+def make_geoaxes(projection='PlateCarree'):
+    """ Create a GeoAxes mapping object.
+
+    Parameters
+    ----------
+    projection : str or a 2-tuple
+        Either pass in the name of a projection, which will
+        assume that default arguments for that projection are
+        requested, or pass a 2-element tuple where the first
+        element is the name of the projection and hte second
+        element is a keyword dictionary with the arguments defining
+        that projection.
+
+    Returns
+    -------
+    ax : GeoAxes object with requeted mapping projection.
+
+    """
+    # Do we have a complex projection to deal with?
+    if isinstance(projection, (list, tuple)):
+        if len(projection) != 2:
+            raise ValueError("Expected 'projection' to only have 2 values")
+        projection, proj_kwargs = projection[0], projection[1]
+    else:
+        proj_kwargs = {}
+
+    proj = get_projection(projection, **proj_kwargs)
+    ax = plt.axes(projection=proj)
+
+    return ax
+
 def get_projection(name, **kwargs):
     """ Instantiate a Cartopy coordinate reference system for
     constructing a GeoAxes object.
