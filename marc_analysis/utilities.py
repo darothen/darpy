@@ -158,6 +158,12 @@ def shuffle_dims(d, first_dims='lev'):
         dims.insert(i, dims.pop(dims.index(dim)))
     return d.transpose(*dims)
 
+def shift_lons(lons):
+    """ Convert a vector of longitudes in the 0 < lon < 360 coordinate
+    system to longitudes in the -180 < 0 < 180 coordinate system. """
+
+
+
 ################################################################
 ## IRIS CUBE FUNCTIONS
 

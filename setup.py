@@ -71,4 +71,10 @@ setup(name=NAME,
       classifiers=CLASSIFIERS,
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,
-      url=URL)
+      url=URL,
+      packages=['marc_analysis', ],
+      package_data={
+          'marc_analysis': ['data/masks.nc',
+                            'data/CESM_default_vars.p', ],
+      },
+)

@@ -1,7 +1,9 @@
 
 import os
 import json
+import pkg_resources
 import pickle
+import warnings
 
 from . io import load_variable
 from . extract import extract_variable
@@ -23,15 +25,22 @@ _CESM_VARS = None
 
 def get_cesm_vars(reextract=True):
     """ Load in the saved dictionary of CESM vars. """
-    this_dir, this_filename = os.path.split(__file__)
 
     global _CESM_VARS
 
     if reextract or (_CESM_VARS is None):
-        with open(os.path.join(this_dir, "CESM_default_vars.p"), 'rb') as f:
-            CESM_vars_dict = pickle.load(f)
+        try:
+            CESM_defaults_fn = pkg_resources.resource_filename(
+                "marc_analysis", "data/CESM_default_vars.p"
+            )
+            with open(CESM_defaults_fn, 'rb') as f:
+                CESM_vars_dict = pickle.load(f)
 
-        _CESM_VARS = CESM_vars_dict
+            _CESM_VARS = CESM_vars_dict
+
+        except FileNotFoundError:
+            warnings.warn("Couldn't find CESM_default_vars archive")
+            _CESM_vars_dict = None
     else: 
         CESM_vars_dict = _CESM_VARS
 
