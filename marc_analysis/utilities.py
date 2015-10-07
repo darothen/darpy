@@ -9,6 +9,29 @@ from subprocess import call, check_output
 import numpy as np
 from xray import DataArray, Dataset
 
+## DATA REFERENCE
+mode_colors = {
+    # Sulfate - red
+    'NUC': '#fee0d2',
+    'AIT': '#fc9272',
+    'ACC': '#ef3b2c',
+    # Organic - green
+    'OC': '#4daf4a',
+    'MOS': '#ffff33', # green + red = yellow
+    # Black - blue,
+    'BC': '#377eb8',
+    'MBS': '#984ea3', # blue + red = purple
+    # Dust - shades of brown
+    'DST01': '#f6e8c3', 'DST02': '#dfc27d',
+    'DST03': '#bf812d', 'DST04': '#8c510a',
+    # Sea Salt - shades of teal
+    'SSLT01': '#c7eae5', 'SSLT02': '#80cdc1',
+    'SSLT03': '#35978f', 'SSLT04': '#01665e',
+}
+all_modes = ['NUC', 'AIT', 'ACC', 'OC', 'MOS', 'BC', 'MBS',
+             'DST01', 'DST02', 'DST03', 'DST04',
+             'SSLT01', 'SSLT02', 'SSLT03', 'SSLT04', ]
+
 #####################################################################
 ## VERSIONING FUNCTIONS
 
