@@ -286,6 +286,40 @@ def pd_minus_pi(ds, pd='F2000', pi='F1850'):
     """
     return ds.sel(aer=pd) - ds.sel(aer=pi)
 
+def extract_feature(ds, feature='ocean'):
+    """ Extract a masked dataset with only the requested feature
+    available for analysis.
+
+    Parameters
+    ----------
+    ds : Dataset or DataArray
+        The Dataset or DataArray to mask
+    feature : str
+        A string, either "ocean" or "land" indicating which
+        feature to preserve in the dataset; the inverse of this feature
+        will be masked.
+
+    Returns
+    -------
+    masked_ds : Dataset or DataArray
+        The original Dataset or DataArray with the inverse of the requested
+        feature masked out.
+    """
+    from . import masks
+
+    _FEATURE_MAP = {
+        'ocean': 0., 'land': 1., 'ice': 2.,
+    }
+    feature_key_str = " ".join(["'%s'" % s for s in _FEATURE_MAP])
+
+
+    if not (feature in _FEATURE_MAP):
+        raise ValueError("Expected one of [%s] as feature; got '%s'"
+                            % (feature_key_str, feature))
+
+    mask = (masks['ORO'] == _FEATURE_MAP[feature])
+    return ds.where(mask)
+
 ################################################################
 ## IRIS CUBE FUNCTIONS
 
