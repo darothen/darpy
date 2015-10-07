@@ -1,13 +1,38 @@
 
-import numpy as np
+import pkg_resources
+import warnings
 
+import geopandas
+import numpy as np
+from shapely.geometry import asPoint, MultiPolygon
+from shapely.prepared import prep
+import xray
 from xray import DataArray, Dataset
 
 # from windspharm.standard import VectorWind
 # from windspharm.tools import prep_data, recover_data, order_latdim
 
 from . utilities import ( copy_attrs, preserve_attrs, area_grid,
-                         shuffle_dims )
+                         shuffle_dims, shift_lons )
+
+_OCEAN_SHAPE = None
+def _get_ocean_shapefile():
+
+    global _OCEAN_SHAPE
+
+    if _OCEAN_SHAPE is None:
+        try:
+            ocean_shp_fn = pkg_resources.resource_filename(
+                "marc_analysis", "data/ne_110m_ocean.shp"
+            )
+            _OCEAN_SHAPE = geopandas.read_file(ocean_shp_fn)
+            _OCEAN_SHAPE = MultiPolygon(_OCEAN_SHAPE.geometry.values.tolist())
+            _OCEAN_SHAPE = prep(_OCEAN_SHAPE)
+        except OSError:
+            warnings.warn("Unable to locate oceans shapefile; ocean"
+                          " point mask is not available")
+
+    return _OCEAN_SHAPE
 
 ################################################################
 ## DATASET MANIPULATION FUNCTIONS
@@ -319,6 +344,30 @@ def extract_feature(ds, feature='ocean'):
 
     mask = (masks['ORO'] == _FEATURE_MAP[feature])
     return ds.where(mask)
+
+def _is_in_ocean(p, oceans):
+    return oceans.contains(p)
+
+def mask_ocean_points(dataset, oceans=None, pt_return=False,
+                      longitude='lon', latitude='lat'):
+
+    if oceans is None:
+        oceans = _get_ocean_shapefile()
+    if oceans is None: # still?!? Must be broken
+        raise RuntimeError("Couldn't load default ocean shapefile")
+
+    lons, lats = dataset[longitude], dataset[latitude]
+    if isinstance(dataset, (xray.Dataset, xray.DataArray)):
+        lons.values = shift_lons(lons.values)
+    else:
+        lons = shift_lons(lons)
+
+    points = [asPoint(point) for point in np.column_stack([lons, lats])]
+    if pt_return:
+        return points
+
+    in_ocean = [_is_in_ocean(p, oceans) for p in points]
+    return in_ocean
 
 ################################################################
 ## IRIS CUBE FUNCTIONS

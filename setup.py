@@ -75,6 +75,8 @@ setup(name=NAME,
       packages=['marc_analysis', ],
       package_data={
           'marc_analysis': ['data/masks.nc',
-                            'data/CESM_default_vars.p', ],
+                            'data/CESM_default_vars.p',
+                            'data/ne_110m_ocean.shp',
+                            'data/ne_110m_land.shp',  ],
       },
 )
