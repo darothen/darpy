@@ -1,11 +1,13 @@
 name: marc_analysis
 channels:
   - unidata
+  - IOOS
   - scitools
   - darothen
 dependencies:
   - cartopy>=0.12
   - dask
+  - geopandas
   - jupyter
   - matplotlib
   - netcdf4
