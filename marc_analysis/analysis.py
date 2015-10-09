@@ -455,18 +455,20 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
 
     if weights is None: # Compute gaussian weights in latitude
         weights = area_grid(data.lon, data.lat)
-        gw = weights.sum('lon')
-        weights = 2.*gw/gw.sum('lat')
+        # Saving for later - compute latitudinal weighting
+        # gw = weights.sum('lon')
+        # weights = 2.*gw/gw.sum('lat')
 
     if isinstance(data, DataArray):
 
-        is_null = ~np.isfinite(data)
-        if np.any(is_null):
-            data = np.ma.masked_where(is_null, data)
+        # If there are NaNs, then use individual weights
+        is_nan = data.notnull()
+        if is_nan.any():
+            total_weights = weights.where(is_nan).sum(dims)
+        else:
+            total_weights = weights.sum(dims)
 
-        # return np.average(data, weights=weights)
-        # return np.sum(data*weights)/np.sum(weights)
-        return (data*weights/weights.sum()).sum(dims)
+        return (data*weights).sum(dims)/total_weights
 
     elif isinstance(data, Dataset):
 
@@ -477,9 +479,16 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
         # which are all DataArrays, and compute the global avg
         # on those elements.
         for v in data.data_vars:
-            new_data[v] = global_avg(data[v], weights)
+            coords = data[v].coords
+            if not ('lon' in coords): 
+                new_data[v] = data[v]
+            else:
+                new_data[v] = global_avg(data[v], weights)
 
-        # return (data*weights/weights.sum(dims)).sum(dims)
+        # Collapse remaining lat, lon dimensions if they're here
+        leftover_dims = [d for d in dims if d in new_data.coords]
+        if leftover_dims:
+            new_data = new_data.sum(leftover_dims)
         return new_data
 
     # elif isinstance(data, iris.cube.Cube):
