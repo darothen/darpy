@@ -96,8 +96,6 @@ From there on, you can analyze and process the variables. But all the boilerplat
 
 ## TODO
 
-1. Re-factor logic so that `Experiment` objects also load variable data in a simple, concise fashion
-
 2. Contribute `xray` interface to windspharm
 
 3. Interpolate vertical date coordinate from hybrid pressure level to mandatory pressure levels, a là AMWG (ncl method `vinth2p`). Should probably wait until xray supports interpolation over a dimension instead of just nearest-neighbor lookups, although it's entirely doable simply by building new arrays.
@@ -111,3 +109,5 @@ From there on, you can analyze and process the variables. But all the boilerplat
 7. Build conda package for NCO, add to environment
 
 8. Lazy open from simulation archive without extracting?
+
+9. Replace NCO wrapper method with direct binding via [https://github.com/nco/pynco](https://github.com/nco/pynco)
