@@ -408,7 +408,7 @@ def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
 
 def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
                       center=None, robust=False, extend=None,
-                      levels=None, filled=True, cnorm=None):
+                      levels=None, filled=True, cnorm=None, **kwargs):
     """
     Use some heuristics to set good defaults for colorbar and range.
 

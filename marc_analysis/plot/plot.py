@@ -202,7 +202,7 @@ def geo_plot(darray, ax=None, method='contourf',
 
     # Infer colormap settings if not provided
     if not ('vmin' in kwargs):
-        cmap_kws = infer_cmap_params(darray.data)
+        cmap_kws = infer_cmap_params(darray.data, **extra_args)
         extra_args.update(cmap_kws)
 
     gp = plot_func(darray.lon.values, darray.lat.values, darray.data,
