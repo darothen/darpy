@@ -37,6 +37,194 @@ def _get_ocean_shapefile():
 ################################################################
 ## DATASET MANIPULATION FUNCTIONS
 
+def hybrid_to_pressure(ds, stride='m', P0=100000.):
+    """ Convert hybrid vertical coordinates to pressure coordinates
+    corresponding to model sigma levels.
+
+    Parameters
+    ----------
+    data : xray.Dataset
+        The dataset to inspect for computing vertical levels
+    stride : str, either 'm' or 'i'
+        Indicate if the field is on the model level interfaces or
+        middles for referencing the correct hybrid scale coefficients
+    P0 : float, default = 1000000.
+        Default reference pressure in Pa, used as a fallback.
+
+    """
+
+    # Grab necessary data fields
+    a, b = ds['hya'+stride], ds['hyb'+stride] # A, B coefficients
+    try:
+        P0_ref = ds['P0'] # Reference pressure
+    except KeyError:
+        P0_ref = P0
+    P0 = P0_ref
+    PS = ds['PS'] # Surface pressure field
+
+    pres_sigma = a*P0 + b*PS
+    # Copy attributes and overwrite where different
+    pres_sigma.attrs.update(PS.attrs)
+    pres_sigma.attrs['long_name'] = "Pressure field on sigma levels"
+
+    return pres_sigma
+
+def _interp_scipy(data, pres_levs, new_pres_levs):
+
+    """ Interpolate by aggregating all data into columns and
+    applying scipy's interp1d method. """
+
+    from scipy.interpolate import interp1d
+
+    # Shuffle dims so that 'lev' is first for simplicity
+    data = shuffle_dims(data)
+    P = shuffle_dims(pres_levs)
+
+    # Find the 'lev' axis for interpolating
+    orig_shape = data.shape
+    axis = data.dims.index('lev')
+    nlev = orig_shape[axis]
+
+    cols = int(np.product(data.shape)/nlev)
+    nlev_new = len(new_pres_levs)
+
+    # Re-shape original containers and create one for holding
+    # interpolated data
+    data_new = np.zeros((nlev_new, cols))
+    temp_shape = (nlev, cols)
+    data_prep = np.reshape(data.data, temp_shape)
+    logP_prep = np.reshape(np.log10(P.data), temp_shape)
+
+
+    for col in range(cols):
+
+        # Create interpolater. Need to disable bounds error checking so that
+        # it will automatically fill in missing values
+        lin_interp = interp1d(logP_prep[:, col], data_prep[:, col],
+                              axis=axis, bounds_error=False,
+                              assume_sorted=True)
+
+        # New coordinates (x'), mapped to log space
+        logP_new = np.log10(new_pres_levs)
+
+        # Compute interpolation on the new levels
+        interped_logA = lin_interp(logP_new)
+        data_new[:, col] = interped_logA
+
+    final_shape = tuple([nlev_new, ] + list(orig_shape[1:]))
+    data_new = np.reshape(data_new, final_shape)
+
+    return data_new
+
+def _interp_numpy(data, pres_levs, new_pres_levs):
+    """ Interpolate all columns simultaneously by iterating over
+    vertical dimension of original dataset, following methodology
+    used in UV-CDAT. """
+
+    # Shuffle dims so that 'lev' is first for simplicity
+    data = shuffle_dims(data)
+    pres_levs = shuffle_dims(pres_levs)
+
+    # Find the 'lev' axis for interpolating
+    orig_shape = data.shape
+    axis = data.dims.index('lev')
+    nlev = orig_shape[axis]
+
+    n_sigma = nlev # Number of original sigma levels
+    n_interp = len(new_pres_levs) # Number of interpolant levels
+
+    data_interp_shape = [n_interp, ] + list(orig_shape[1:])
+    data_new = np.zeros(data_interp_shape)
+
+    # Shape of array at any given level
+    flat_shape = pres_levs.isel(lev=0).shape
+
+
+    # Loop over the interpolant levels
+    for ilev in range(n_interp):
+
+        lev = new_pres_levs[ilev]
+
+        P_abv = np.ones(flat_shape)
+        # Array on sigma level above, below
+        A_abv, A_bel = -1.*P_abv, -1.*P_abv
+        # Pressure on sigma level above, below
+        P_abv, P_bel = -1.*P_abv, -1.*P_abv
+
+        # Mask area where pressure == levels
+        P_eq = np.ma.masked_equal(P_abv, -1)
+
+        # Loop from the second sigma level to the last one
+        for i in range(1, n_sigma):
+            a = np.ma.greater_equal(pres_levs.isel(lev=i), lev) # sigma-P > lev?
+            b = np.ma.less_equal(pres_levs.isel(lev=i-1), lev) # sigma-P < lev?
+
+            # Now, if the interpolant level is between the two
+            # sigma levels, then we can use these two levels for the
+            # interpolation.
+            a = (a & b)
+
+            # Pressure on sigma level above, below
+            # P_abv[a], P_bel[a] = P[i].data[a], P[i-1].data[a]
+            P_abv = np.where(a, pres_levs[i], P_abv)
+            P_bel = np.where(a, pres_levs[i-1], P_bel)
+            # Array on sigma level above, below
+            # A_abv[a], A_bel[a] = A[i].data[a], A[i-1].data[a]
+            A_abv = np.where(a, data[i], A_abv)
+            A_bel = np.where(a, data[i-1], A_bel)
+
+            # sel = P[i] == lev
+            # P_eq[sel] = A[i].data[sel]
+            P_eq = np.where(pres_levs[i] == lev, data[i], P_eq)
+
+        # If no data below, set to missing value; if there is, set to
+        # (interpolating) level
+        P_val = np.ma.masked_where((P_bel == -1), np.ones_like(P_bel)*lev)
+
+        # Calculate interpolation
+        tl = np.log(P_val/P_bel)/np.log(P_abv/P_bel)*(A_abv - A_bel) + A_bel
+        tl.fill_value = np.nan
+
+        # Copy into result array, masking where values are missing
+        # because of bad interpolation (out of bounds, etc.)
+        tl[tl.mask] = np.nan
+        data_new[ilev] = tl
+
+    return data_new
+
+mandatory_levs = 100.*np.array([250., 300., 500., 700., 850., 925., 1000.])
+def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
+                          method="scipy"):
+    """
+    Parameters
+    ----------
+
+    Returns
+    -------
+    """
+
+    data = data.squeeze()
+    pres_levs = pres_levs.squeeze()
+
+    if method == "scipy":
+        data_new = _interp_scipy(data, pres_levs, new_pres_levs)
+    elif method == "numpy":
+        data_new = _interp_numpy(data, pres_levs, new_pres_levs)
+    else:
+        raise ValueError("Don't know method '%s'" % method)
+
+    # Create new DataArray based on interpolated data
+    new_coords = {}
+    dims = []
+    for c in data.dims:
+        if c == 'lev':
+            new_coords[c] = new_pres_levs
+        else:
+            new_coords[c] = data.coords[c]
+        dims.append(c)
+
+    return xray.DataArray(data_new, coords=new_coords, dims=dims, )
+
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
 
