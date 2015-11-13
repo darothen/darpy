@@ -443,6 +443,21 @@ def scale_order(data, order=0, latex_units=False):
     return scaled_data
 
 @preserve_attrs
+def seasonal_avg(data, season=None):
+    """ Compute a mean for a given season, or for all seasons in a
+    dataset. """
+
+    seasonal_means = (data.groupby('time.season')
+                          .mean('time', keep_attrs=True))
+
+    if season is None:
+        return seasonal_means
+    else:
+        if season not in ["DJF", "MAM", "JJA", "SON"]:
+            raise ValueError("Didn't understand season '%s'" % season)
+        return seasonal_means.sel(season=season)
+
+@preserve_attrs
 def global_avg(data, weights=None, dims=['lon', 'lat']):
     """ Compute (area-weighted) global average over a DataArray
     or Dataset. If `weights` are not passed, they will be computed
