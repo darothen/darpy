@@ -1,0 +1,276 @@
+#!/usr/bin/env python
+"""
+Compute standardized aerosol size distribution parameters from CESM/MARC
+standard output history tapes.
+
+"""
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger()
+
+import copy
+import datetime
+import os
+import sys
+try:
+    import xray
+except ImportError:
+    logger.critical("Need to install `xray` to run this script.")
+    sys.exit()
+import numpy as np
+
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+
+parser = ArgumentParser(description=__doc__,
+                        formatter_class=RawDescriptionHelpFormatter)
+parser.add_argument("-d", "--debug", action="store_true",
+                    help="Log extra debugging information")
+parser.add_argument("-O", "--overwrite", action="store_true",
+                    help="Overwrite existing output file, if any")
+parser.add_argument("in_fn", type=str, metavar="in.nc",
+                    help="Input file name")
+parser.add_argument("out_fn", type=str, metavar="out.nc",
+                    help="Output file name")
+
+########################################################################
+
+MARC_MODES = [
+    "NUC", "AIT", "ACC", # sulfates
+    "BC", "MBS", # black carbon
+    "OC", "MOS", # organic carbon
+]
+MARC_RATIOS = ["mBIM", "mOIM"]
+NUMBER_VARS = ["n%s" % mode for mode in MARC_MODES]
+MASS_VARS = ["m%s" % mode for mode in MARC_MODES]
+SIZE_VARS = ["mu%s" % mode for mode in MARC_MODES]
+ACT_VARS = ["n%sACT" % mode for mode in MARC_MODES]
+NC_THERMO_VARS = ["T", "Q", "PS", "time_bnds", "hyam", "hybm"]
+SINGLE_MOM_VARS = ["DST%02d" % i for i in range(1, 5)] + \
+                  ["SSLT%02d" % i for i in range(1, 5)]
+
+SM_MODE_DICT = {
+    'DST01': { 'mass2num': 3.484e15, 'mu': 0.16,
+               'kappa': 0.14, 'sigma': 1.4 },
+    'DST02': { 'mass2num': 2.138e13, 'mu': 0.406,
+               'kappa': 0.14, 'sigma': 1.4 },
+    'DST03': { 'mass2num': 2.205e13, 'mu': 0.867,
+               'kappa': 0.14, 'sigma': 1.4 },
+    'DST04': { 'mass2num': 3.165e12, 'mu': 1.656,
+               'kappa': 0.14, 'sigma': 1.4 },
+    'SSLT01': { 'mass2num': 3.2864e14, 'mu': 0.5,
+                'kappa': 1.16, 'sigma': 1.59 },
+    'SSLT02': { 'mass2num': 8.6265e12, 'mu': 2.0,
+                'kappa': 1.16, 'sigma': 1.37 },
+    'SSLT03': { 'mass2num': 5.0409e11, 'mu': 5.0,
+                'kappa': 1.16, 'sigma': 1.41 },
+    'SSLT04': { 'mass2num': 2.6851e10, 'mu': 15.0,
+                'kappa': 1.16, 'sigma': 1.22 },
+}
+MARC_MODE_DICT = {
+    'OC':  { 'sigma': 2.0, 'rho': 2000., 'kappa': 1e-10 },
+    'MOS': { 'sigma': 2.0, },
+    'BC':  { 'sigma': 2.0, 'rho': 2000., 'kappa': 1e-10 },
+    'MBS': { 'sigma': 2.0, 'rho': 2000., 'kappa': 0.507 },
+    'NUC': { 'sigma': 1.59, 'rho': 1800., 'kappa': 0.507 },
+    'AIT': { 'sigma': 1.59, 'rho': 1800., 'kappa': 0.507 },
+    'ACC': { 'sigma': 1.59, 'rho': 1800., 'kappa': 0.507 },
+}
+
+def _set_attrs(ds, **attrs_map):
+    """ Set attributes for a Dataset or DataArray """
+    for key in attrs_map:
+        val = attrs_map[key] # Use Python 2/3 agnostic style
+        ds.attrs[key] = val
+
+def _append_history(ds):
+    """ Add a line to a dataset's history record """
+    try:
+        history = ds.attrs['history']
+    except KeyError:
+        history = ""
+    now = datetime.datetime.now()
+    prog = __file__ # os.path.basename(__file__)
+    history = (now.strftime("%a %b %d %H:%M:%S %Y") +
+               ": {} {}\n".format(prog, " ".join(sys.argv[1:])) +
+               history)
+    ds.attrs['history'] = history
+
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+
+    # Set debug logging if requested
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
+
+    # Report input and output filenames
+    logger.debug("Input file: {}".format(args.in_fn))
+    logger.debug("Output file: {}".format(args.out_fn))
+
+    # Load data file via xray
+    ds = xray.open_dataset(args.in_fn, decode_cf=False)
+
+    # Setup output Dataset
+    out_ds = xray.Dataset()
+    out_ds.attrs = copy.copy(ds.attrs)
+    _append_history(out_ds)
+
+    # Assert that we can compute the air density, in order to resolve
+    # size distribution parameters using native units
+    for var in NC_THERMO_VARS:
+        logging.debug("Copying {}".format(var))
+        if var not in ds.data_vars:
+            logger.critical(
+                "Couldn't find {} in {}; exiting.".format(var, args.in_fn)
+            )
+            sys.exit()
+        out_ds[var] = ds[var]
+
+    # Compute air density
+    logger.info("Computing air density...")
+    Rd = 287. # J/kg
+    pressure = ds.hyam*ds.P0 + ds.hybm*ds.PS
+    _set_attrs(pressure, units=ds.PS.attrs['units'],
+               name="P", long_name="air pressure")
+    w = ds.Q/(1.0 - ds.Q)
+    tv = ds['T']*(1.0 + 0.61*w)
+    rho = pressure/(Rd*tv)
+    _set_attrs(rho, name="RHO", units="kg/m3", long_name="air density")
+
+    ds[rho.name] = rho
+
+    # Copy var and convert number, mass proper units
+    logger.info("Converting units on number/mass moments")
+    for mode in MARC_MODES:
+        logger.debug("   " + mode)
+        num, mass = "n"+mode, "m"+mode
+
+        if num in ds.data_vars:
+            n_mode = ds[num]*rho*1e-6
+            n_mode.attrs = copy.copy(ds[num].attrs)
+            _set_attrs(n_mode, name=num, units="1/cm3")
+            out_ds[num] = n_mode
+        else: logger.debug("   skipping " + num)
+
+        if mass in ds.data_vars:
+            m_mode = ds[mass]*rho*1e9
+            m_mode.attrs = copy.copy(ds[mass].attrs)
+            _set_attrs(m_mode, name=num, units="ng/m3")
+            out_ds[mass] = m_mode
+        else: logger.debug("   skipping " + mass)
+
+    # Do the same for the mixed mode ratios
+    for mode in MARC_RATIOS:
+        logger.debug("   " + mode)
+        if mode in ds.data_vars:
+            m_mode = ds[mode]*rho*1e9
+            m_mode.attrs = copy.copy(ds[mode].attrs)
+            _set_attrs(m_mode, name=mode, units="ng/m3")
+            out_ds[mode] = m_mode
+        else:
+            logger.debug("   skipping " + mode)
+
+    # And do the same for the DST and SSLT modes
+    for mode in SINGLE_MOM_VARS:
+        logger.debug("   " + mode)
+        num, mass = "n"+mode, "m"+mode
+        mass_to_num = SM_MODE_DICT[mode]['mass2num']
+
+        if mode in ds.data_vars:
+            n_mode = ds[mode]*rho*mass_to_num*1e-6
+            n_mode.attrs = copy.copy(ds[mode].attrs)
+            _set_attrs(n_mode, name=num, units="1/cm3",
+                       long_name="Number concentration of %s mode" % mode)
+            out_ds[num] = n_mode
+
+            m_mode = ds[mode]*rho*1e9
+            m_mode.attrs = copy.copy(ds[mode].attrs)
+            _set_attrs(m_mode, name=mass, units="ng/m3",
+                       long_name="Mass concentration of %s mode" % mode)
+            out_ds[mass] = m_mode
+        else:
+            logger.debug("   skipping " + mode)
+
+    # Compute geometric mode size
+    logger.info("Computing geometric mode sizes...")
+    inv_rho = 1./rho
+    for mode in MARC_MODES:
+        logger.debug(mode)
+        num, mass = "n"+mode, "m"+mode
+
+        sigma_mode = MARC_MODE_DICT[mode]['sigma']
+
+        # Slightly more complicated calculation for mixed mode parameters
+        if mode == "MOS":
+            if np.any(['mOIM' not in out_ds, 'mMOS' not in out_ds]):
+                logger.debug("   skipping " + mode)
+                continue
+            mOIM, mMOS = out_ds['mOIM'], out_ds['mMOS']
+            rhoOC = MARC_MODE_DICT['OC']['rho']
+            rhoACC = MARC_MODE_DICT['ACC']['rho']
+
+            rho_mode = (mOIM*rhoOC + (mMOS - mOIM)*rhoACC)/mMOS
+            rho_mode.values = np.ma.masked_outside(rho_mode.values,
+                                                   rhoACC, rhoOC)
+            rho_mode.attrs = copy.copy(out_ds[num].attrs)
+            rho_mode.attrs['units'] = "kg/m3"
+            rho_mode.attrs['name'] = "rho"+mode
+            rho_mode.attrs['long_name'] = \
+                out_ds[num].attrs['long_name'].replace(
+                    "Mass mixing ratio of", "Avg particle density in"
+                )
+            out_ds['rho'+mode] = rho_mode
+
+            kappaACC = MARC_MODE_DICT['ACC']['kappa']
+            kappaOC = MARC_MODE_DICT['OC']['kappa']
+
+            kappa_mode = (kappaOC*(mOIM*1e-9)/rhoOC +
+                          kappaACC*((mMOS-mOIM)*1e-9)/rhoACC)
+            kappa_mode /= (mMOS*1e-9/rho_mode)
+            kappa_mode.values = np.ma.masked_outside(kappa_mode.values,
+                                                     kappaOC, kappaACC)
+            kappa_mode.attrs = copy.copy(out_ds[num].attrs)
+            kappa_mode.attrs['units'] = "1"
+            kappa_mode.attrs['name'] = "kappa"+mode
+            kappa_mode.attrs['long_name'] = \
+                out_ds[num].attrs['long_name'].replace(
+                    "Mass mixing ratio of", "Hygroscopicity of"
+                )
+            out_ds['kappa'+mode] = kappa_mode
+
+        else:
+            rho_mode = MARC_MODE_DICT[mode]['rho']
+            kappa_mode = MARC_MODE_DICT[mode]['kappa']
+
+
+        if ((num in out_ds) and (mass in out_ds)):
+            n_mode, m_mode = out_ds[num], out_ds[mass]
+
+            mu = (m_mode*1e-9)*(3./4./np.pi)*(1./rho_mode)*(1./n_mode)
+            mu *= np.exp(-4.5*(np.log(sigma_mode)**2))
+            mu = mu**(1./3.)
+            mu *= 1e4
+            mu.attrs = copy.copy(out_ds[num].attrs)
+            mu.attrs['units'] = "1"
+            mu.attrs['name'] = "mu"+mode
+            mu.attrs['long_name'] = \
+                out_ds[num].attrs['long_name'].replace(
+                    "Mass mixing ratio of", "Geo Mean Radius of"
+                )
+            out_ds['mu'+mode] = mu
+        else:
+            logger.debug("   skipping " + mode)
+
+    # Save output file
+    if os.path.exists(args.out_fn) and (not args.overwrite):
+        while True:
+            m = input("File '{}' exists; (o)verwrite or attempt to (a)ppend? "
+                      .format(args.out_fn))
+            if m in ['o', 'a']: break
+        if m == 'o': m = 'w' # convert to `to_netcdf()` mode flag
+    else:
+        m = 'w'
+    logger.info("Writing to {}".format(args.out_fn))
+    out_ds.to_netcdf(args.out_fn, mode=m)
+
