@@ -211,8 +211,13 @@ if __name__ == "__main__":
             rhoACC = MARC_MODE_DICT['ACC']['rho']
 
             rho_mode = (mOIM*rhoOC + (mMOS - mOIM)*rhoACC)/mMOS
-            rho_mode.values = np.ma.masked_outside(rho_mode.values,
-                                                   rhoACC, rhoOC)
+
+             # Limit min/max
+            min_density = np.min([rhoOC, rhoACC])
+            max_density = np.max([rhoOC, rhoACC])
+            rho_mode.values[rho_mode.values > max_density] = max_density
+            rho_mode.values[rho_mode.values < min_density] = min_density
+
             rho_mode.attrs = copy.copy(out_ds[num].attrs)
             rho_mode.attrs['units'] = "kg/m3"
             rho_mode.attrs['name'] = "rho"+mode
@@ -222,14 +227,20 @@ if __name__ == "__main__":
                 )
             out_ds['rho'+mode] = rho_mode
 
+            ############################################################
+
             kappaACC = MARC_MODE_DICT['ACC']['kappa']
             kappaOC = MARC_MODE_DICT['OC']['kappa']
 
             kappa_mode = (kappaOC*(mOIM*1e-9)/rhoOC +
                           kappaACC*((mMOS-mOIM)*1e-9)/rhoACC)
             kappa_mode /= (mMOS*1e-9/rho_mode)
-            kappa_mode.values = np.ma.masked_outside(kappa_mode.values,
-                                                     kappaOC, kappaACC)
+
+            min_kappa = min([kappaOC, kappaACC])
+            max_kappa = max([kappaOC, kappaACC])
+            kappa_mode.values[kappa_mode.values > max_kappa] = max_kappa
+            kappa_mode.values[kappa_mode.values < min_kappa] = min_kappa
+
             kappa_mode.attrs = copy.copy(out_ds[num].attrs)
             kappa_mode.attrs['units'] = "1"
             kappa_mode.attrs['name'] = "kappa"+mode
