@@ -87,8 +87,8 @@ def check_cyclic(data, coord='lon'):
     return np.all(data.isel(**{coord: 0}) == data.isel(**{coord: -1}))
 
 class MidpointNorm(Normalize):
-    """ A normalization tool for ensuring that '0' occurs in the 
-    middle of a colorbar. 
+    """ A normalization tool for ensuring that '0' occurs in the
+    middle of a colorbar.
 
     """
     def __init__(self, vmin, vmax, midpoint, clip=False):
@@ -107,7 +107,7 @@ class MidpointNorm(Normalize):
         vmin, vmax, midpoint = self.vmin, self.vmax, self.midpoint
 
         if not (vmin < midpoint < vmax):
-            raise ValueError("midpoint must be between maxvalue and minvalue.")       
+            raise ValueError("midpoint must be between maxvalue and minvalue.")
         elif vmin == vmax:
             result.fill(0) # Or should it be all masked? Or 0.5?
         elif vmin > vmax:
@@ -124,16 +124,16 @@ class MidpointNorm(Normalize):
             resdat = result.data
 
             #First scale to -1 to 1 range, than to from 0 to 1.
-            resdat -= midpoint            
-            resdat[resdat>0] /= abs(vmax - midpoint)            
+            resdat -= midpoint
+            resdat[resdat>0] /= abs(vmax - midpoint)
             resdat[resdat<0] /= abs(vmin - midpoint)
 
             resdat /= 2.
             resdat += 0.5
-            result = np.ma.array(resdat, mask=result.mask, copy=False)                
+            result = np.ma.array(resdat, mask=result.mask, copy=False)
 
         if is_scalar:
-            result = result[0]            
+            result = result[0]
         return result
 
 def make_colors(levels, coloring, cmap):
@@ -149,28 +149,28 @@ def make_colors(levels, coloring, cmap):
         have a set number of color elements, whereas 'continuous'
         ones span value in between the elements of `levels`.
     cmap : str
-        The color palette / map name to use  
+        The color palette / map name to use
 
     Returns:
     --------
     cmap
         A colormap that matplotlib can use to set plot colors
-    norm 
+    norm
         The normalization controlling how the data is colored
         based on the user-defined levels.
 
     """
 
-    ncolors = len(levels) + 1        
+    ncolors = len(levels) + 1
     assert coloring in ['continuous', 'discrete']
 
     ## reverse the colorbar if its cubehelix and a negative scale
     if ("cubehelix" in cmap) and (levels[0] < 0):
         if "_r" in cmap: cmap = cmap.replace("_r", "")
-        else: cmap = cmap+"_r"                        
-    
+        else: cmap = cmap+"_r"
+
     if coloring == 'continuous':
-        norm = MidpointNorm(vmin=levels[0], vmax=levels[-1], 
+        norm = MidpointNorm(vmin=levels[0], vmax=levels[-1],
                             midpoint=levels[len(levels)/2])
 
     elif coloring == 'discrete':
@@ -315,18 +315,18 @@ def set_labels(ax, xlabel=None, ylabel=None):
     if ylabel is not None:
         ax.set_ylabel(ylabel)
     return ax
-    
+
 def save_figure(root, suffix="", fig=None, qual="quick"):
     """ Save a figure with presets for different output
     qualities.
-    
+
     """
 
     fig_dict = {'bbox_inches': 'tight'}
     if qual == "production":
         format = "png"
         fig_dict['dpi'] = 600
-    elif qual == "quick": 
+    elif qual == "quick":
         format = "png"
         fig_dict['dpi'] = 100
     elif qual == "vector":
@@ -350,7 +350,7 @@ def save_figure(root, suffix="", fig=None, qual="quick"):
         fig.savefig(fn, **fig_dict)
     print("done.")
 
-def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
+def colortext_legend(text_color_map, ax=None, text_labels=None, **kwargs):
     """ Add a custom-built legend to a plot, where all the items in
     the legend have colored text corresponding to colored elements
     in the figure.
@@ -361,7 +361,8 @@ def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
         A mapping from labels -> colors which will be used to construct
         the patch elements to include in the legend.
     ax : Axes
-        The axes instance on which to add the legend.
+        The axes instance on which to add the legend. If not passed,
+        then the legend will simply be created and returned.
     text_labels : dict
         A mapping from labels -> longer descriptions to be used in their
         place in the legend.
@@ -376,7 +377,7 @@ def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
     """
 
     legend_elems = []
-
+    labels = []
     for text, color in text_color_map.items():
         legend_elems.append(
             ( mpatches.Rectangle((0, 0), 1, 1,
@@ -384,11 +385,15 @@ def colortext_legend(text_color_map, ax, text_labels=None, **kwargs):
                                  edgecolor='none'),
               text )
         )
+        labels.append(text)
 
     # Set up a legend with colored-text elements
     elems, texts = zip(*legend_elems)
-    ax.legend(elems, texts, **kwargs)
-    leg = ax.get_legend()
+    if ax is not None:
+        ax.legend(elems, texts, **kwargs)
+        leg = ax.get_legend()
+    else:
+        leg = plt.legend(elems, texts, **kwargs)
 
     # Change the label color
     for label in leg.get_texts():
