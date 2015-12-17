@@ -70,7 +70,7 @@ def _get_file_list(output_dir, regex_str, years_omit=0):
         files_df[key] = files_df[key].apply(int)
 
     # Postprocess - sort
-    files_df = files_df.sort(['hist', 'year', 'month', 'day', 'time'])
+    files_df = files_df.sort_values(by=['hist', 'year', 'month', 'day', 'time'])
 
     ###################################################################
 
