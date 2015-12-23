@@ -30,6 +30,8 @@ parser.add_argument("-O", "--overwrite", action="store_true",
 parser.add_argument("-c", "--classic", action="store_true",
                     help="Save output file in NETCDF3-compliant format;"
                          " useful for interoperability with NCO.")
+parser.add_argument("-v", "--vars", nargs="+",
+                    help="Additional variables to extract (optional)")
 parser.add_argument("in_fn", type=str, metavar="in.nc",
                     help="Input file name")
 parser.add_argument("out_fn", type=str, metavar="out.nc",
@@ -119,6 +121,13 @@ if __name__ == "__main__":
     out_ds.attrs = copy.copy(ds.attrs)
     _append_history(out_ds)
 
+    # Copy requested vars into out_ds
+    for var in args.vars:
+        try:
+            out_ds[var] = ds[var]
+        except KeyError:
+            logger.warn("Variable '{}' not found; skipping".format(var))
+
     # Assert that we can compute the air density, in order to resolve
     # size distribution parameters using native units
     for var in NC_THERMO_VARS:
@@ -142,6 +151,7 @@ if __name__ == "__main__":
     _set_attrs(rho, name="RHO", units="kg/m3", long_name="air density")
 
     ds[rho.name] = rho
+    ds[pressure.name] = pressure
 
     # Copy var and convert number, mass proper units
     logger.info("Converting units on number/mass moments")
