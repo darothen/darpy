@@ -152,8 +152,8 @@ if __name__ == "__main__":
     rho = pressure/(Rd*tv)
     _set_attrs(rho, name="RHO", units="kg/m3", long_name="air density")
 
-    out_ds[rho.name] = rho
-    out_ds[pressure.name] = pressure
+    out_ds['RHO'] = rho
+    out_ds['P'] = pressure
 
     # Copy var and convert number, mass proper units
     logger.info("Converting units on number/mass moments")
