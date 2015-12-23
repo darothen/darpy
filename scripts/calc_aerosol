@@ -122,11 +122,13 @@ if __name__ == "__main__":
     _append_history(out_ds)
 
     # Copy requested vars into out_ds
+    logger.info("Copying requested variables")
     for var in args.vars:
+        logger.info("   " + var)
         try:
             out_ds[var] = ds[var]
         except KeyError:
-            logger.warn("Variable '{}' not found; skipping".format(var))
+            logger.warn("      not found; skipping".format(var))
 
     # Assert that we can compute the air density, in order to resolve
     # size distribution parameters using native units
@@ -150,8 +152,8 @@ if __name__ == "__main__":
     rho = pressure/(Rd*tv)
     _set_attrs(rho, name="RHO", units="kg/m3", long_name="air density")
 
-    ds[rho.name] = rho
-    ds[pressure.name] = pressure
+    out_ds[rho.name] = rho
+    out_ds[pressure.name] = pressure
 
     # Copy var and convert number, mass proper units
     logger.info("Converting units on number/mass moments")
