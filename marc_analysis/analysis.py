@@ -2,10 +2,14 @@
 import pkg_resources
 import warnings
 
-import geopandas
 import numpy as np
-from shapely.geometry import asPoint, MultiPolygon
-from shapely.prepared import prep
+try:
+    import geopandas
+    from shapely.geometry import asPoint, MultiPolygon
+    from shapely.prepared import prep
+except ImportError:
+    warnings.warn("Unable to load geopandas/shapely; ocean shape mask"
+                  " not available.")
 import xray
 from xray import DataArray, Dataset
 
@@ -14,6 +18,26 @@ from xray import DataArray, Dataset
 
 from . utilities import ( copy_attrs, preserve_attrs, area_grid,
                          shuffle_dims, shift_lons )
+
+_MASKS  = None
+def _get_masks():
+
+    global _MASKS
+
+    if _MASKS is None: 
+
+        try:
+            _masks_fn = pkg_resources.resource_filename("marc_analysis",
+                                                        "data/masks.nc")
+            
+            _MASKS = xray.open_dataset(_masks_fn, decode_cf=False,
+                                       mask_and_scale=False,
+                                       decode_times=False).squeeze()
+        except RuntimeError: # xray throws this if a file is not found
+            warnings.warn("Unable to locate `masks` resource.")
+
+    return _MASKS
+
 
 _OCEAN_SHAPE = None
 def _get_ocean_shapefile():
@@ -542,19 +566,21 @@ def extract_feature(ds, feature='ocean'):
         The original Dataset or DataArray with the inverse of the requested
         feature masked out.
     """
-    from . import masks
-
     _FEATURE_MAP = {
         'ocean': 0., 'land': 1., 'ice': 2.,
     }
     feature_key_str = " ".join(["'%s'" % s for s in _FEATURE_MAP])
 
-
     if not (feature in _FEATURE_MAP):
         raise ValueError("Expected one of [%s] as feature; got '%s'"
                             % (feature_key_str, feature))
 
-    mask = (masks['ORO'] == _FEATURE_MAP[feature])
+        if _MASKS is None:
+            _get_masks()
+        if _MASKS is None: # still?!?!? Must be broken/unavailable
+            raise RuntimeError("Couldn't load masks resource")
+
+    mask = (_MASKS['ORO'] == _FEATURE_MAP[feature])
     return ds.where(mask)
 
 def _is_in_ocean(p, oceans):
