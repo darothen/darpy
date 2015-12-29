@@ -21,6 +21,7 @@ from . utilities import ( copy_attrs, preserve_attrs, area_grid,
 
 _MASKS  = None
 def _get_masks():
+    """ Load the orography masks dataset. """
 
     global _MASKS
 
@@ -41,6 +42,7 @@ def _get_masks():
 
 _OCEAN_SHAPE = None
 def _get_ocean_shapefile():
+    """ Load the ocean basins shapefile. """
 
     global _OCEAN_SHAPE
 
@@ -219,12 +221,9 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
 mandatory_levs = 100.*np.array([250., 300., 500., 700., 850., 925., 1000.])
 def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
                           method="scipy"):
-    """
-    Parameters
-    ----------
+    """ Interpolate the vertical coordinaet of a given dataset to the
+    requested pressure levels.
 
-    Returns
-    -------
     """
 
     data = data.squeeze()
@@ -584,6 +583,8 @@ def extract_feature(ds, feature='ocean'):
     return ds.where(mask)
 
 def _is_in_ocean(p, oceans):
+    """ Returns 'true' if the supplied shapely.geometry.Point is located in
+    an ocean. """
     return oceans.contains(p)
 
 def mask_ocean_points(dataset, oceans=None, pt_return=False,
