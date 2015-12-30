@@ -2,8 +2,12 @@
 """
 
 from itertools import product
+import warnings
+try:
+    from cartopy.util import add_cyclic_point
+except ImportError:
+    warnings.warn("cartopy not found!")
 
-from cartopy.util import add_cyclic_point
 from numpy import empty, nditer
 from xray import DataArray, Dataset
 
@@ -63,7 +67,7 @@ def create_master(exp, var, new_fields=["PS", ]):
 
     Returns:
     --------
-    master : xray.DataSet 
+    master : xray.DataSet
         A DataSet combining all the sepearate cases into a single
         master, with the case information as auxiliary coordinates.
 
@@ -157,21 +161,21 @@ def _master_dataset(exp, data_dict, new_fields):
 
     # Create the new Dataset to populate
     ds_new = Dataset()
-    
+
     # Add the case coordinates
     for case, long, vals in exp.itercases():
         ds_new[case] = vals
         ds_new[case].attrs['long_name'] = long
 
-    for f in proto.variables: 
+    for f in proto.variables:
         dsf = proto.variables[f]
-       
+
         # Copy or update the coords/variable data
         if f in proto.coords:
             ds_new.coords[f] = (dsf.dims, dsf.values)
         else:
             if f in new_fields:
-                
+
                 new_dims = exp.cases + [str(x) for x in dsf.dims]
                 new_values = empty(n_case_vals + list(dsf.values.shape))
 
@@ -182,7 +186,7 @@ def _master_dataset(exp, data_dict, new_fields):
                                       for i, n in zip(indx, range(n_cases)) ])
                     new_values[indx] = data_dict[case_indx].variables[f]
                     it.iternext()
-                
+
                 ds_new[f] = (new_dims, new_values)
             else:
                 ds_new[f] = (dsf.dims, dsf.values)
@@ -203,7 +207,7 @@ def dataset_to_cube(ds, field):
 
     raise NotImplementedError("`iris` deprecated for Python 3")
 
-    dsf = ds[field] 
+    dsf = ds[field]
 
     ## Attach coordinates to the cube, using full dataset for lookup
     # dim_coords_and_dims = []
