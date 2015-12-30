@@ -1,10 +1,65 @@
 
+from glob import glob
 import numpy as np
-from xray import open_dataset, decode_cf
+import xray
 
-__all__ = ['load_variable', ]
+import logging
+logger = logging.getLogger()
+
+__all__ = ['load_variable', 'load_netcdfs' ]
 
 ##################
+
+def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
+    """ Load/pre-process a set of netCDF files and concatenate along the
+    given dimension. Useful for loading a portion of a large dataset into
+    memory directly, even when that dataset spans many different files.
+
+    This is based on the idiom provided in the xray documentation at
+    http://xray.readthedocs.org/en/stable/io.html
+
+    Parameters
+    ----------
+    files : str
+        A string indicating either a single filename or a glob pattern
+        to match multiple files.
+    dim : str
+        Name of dimensions to concatenate on; defaults to 'time'
+    transform_func : func, optional
+        Callback function to apply to each file opened before concatenation.
+    open_kws: dict, optional
+        Additional keyword arguments to apply when opening dataset
+
+    Returns
+    -------
+    An xray.Dataset with the transformed, subsetted data from the
+    requested files.
+
+    """
+
+    def process_file(path):
+
+        logger.debug("load_netcdfs: opening {}".format(path))
+
+        # use a context manager, to ensure the file gets closed after use
+        with xray.open_dataset(path, **open_kws) as ds:
+            # transform_func should do some sort of selection or
+            # aggregation
+            if transform_func is not None:
+                ds = transform_func(ds)
+            # load all data from the transformed dataset, to ensure we can
+            # use it after closing each original file
+            ds.load()
+            return ds
+
+    paths = sorted(glob(files))
+    logger.debug("load_netcdfs: found {} paths".format(len(paths)))
+
+    datasets = [process_file(p) for p in paths]
+    combined = xray.concat(datasets, dim)
+
+    return combined
+
 
 def load_variable(var_name, path_to_file,
                   method='xray', fix_times=True, extr_kwargs={}):
@@ -59,7 +114,7 @@ def load_variable(var_name, path_to_file,
 
     elif method == "xray":
 
-        ds = open_dataset(path_to_file, decode_cf=False, **extr_kwargs)
+        ds = xray.open_dataset(path_to_file, decode_cf=False, **extr_kwargs)
 
         # Fix time unit, if necessary
         interval, timestamp = ds.time.units.split(" since ")
@@ -82,6 +137,6 @@ def load_variable(var_name, path_to_file,
             ds.time.values = mean_times
 
         # Lazy decode CF
-        ds = decode_cf(ds)
+        ds = xray.decode_cf(ds)
 
         return ds
