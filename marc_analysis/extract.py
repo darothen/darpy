@@ -139,7 +139,6 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     if not save_dir:
         save_dir = exp.work_dir
 
-    logger.debug()
     logger.debug("---------------------------------")
     logger.debug("Processing {} from CESM output".format(var.oldvar))
     logger.debug("   experiment: {} ".format(exp.name))
@@ -170,7 +169,6 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         if not var.varname: var.varname = var.oldvar
 
     for i, case_bits in enumerate(exp.all_cases()):
-        logger.debug()
         logger.debug("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
 
         retained_files = []
