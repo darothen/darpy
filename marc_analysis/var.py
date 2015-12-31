@@ -74,7 +74,7 @@ def print_cesm_vars():
         if ('long_name' in v) and ('units' in v) :
             logger.info("{} ({})".format(
                 v['long_name'], v['units']
-            )
+            ))
         else:
             logger.info("")
 
