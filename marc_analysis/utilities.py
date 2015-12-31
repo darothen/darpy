@@ -1,9 +1,11 @@
+
+import logging
+logger = logging.getLogger()
+
 import os
-from argparse import ArgumentParser
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
-from itertools import product
 from subprocess import call, check_output
 
 import numpy as np
@@ -382,7 +384,7 @@ class Coord(object):
 def remove_intermediates(intermediates):
     """ Delete list of intermediate files. """
     for fn in intermediates:
-        print("Removing", fn)
+        logger.debug("Removing", fn)
         os.remove(fn)
 
 def arg_in_list(arg, arg_list):
@@ -406,7 +408,7 @@ def cdo_func(args, fn_in, fn_out, silent=True):
         call_args.append("-" + _proc_arg(arg))
     call_args.extend([fn_in, fn_out])
 
-    print("      CDO - %s" % " ".join(call_args))
+    logger.debug("      CDO - %s" % " ".join(call_args))
     call(call_args)
 
     # Post-process using ncwa to remove variables which have been
@@ -417,29 +419,3 @@ def cdo_func(args, fn_in, fn_out, silent=True):
         call(['ncwa', '-O', '-a', "time", fn_out, fn_out])
     # if arg_in_list("zon", args):
     #     call(['ncwa', '-O', '-a', "lon", fn_out, fn_out])
-
-def create_arg_parser(valid_vars=None, var_groups=None):
-    parser = ArgumentParser(description="Control CESM/MARC output extraction")
-
-    parser.add_argument("--act", type=str, default=CASES_ACT, nargs="+",
-                        help="Activation cases to process")
-    parser.add_argument("--aer", type=str, default=CASES_AER, nargs="+",
-                        help="Emissions cases to process")
-    parser.add_argument("--years_omit", type=int, default=3,
-                        help="Number of years to omit from start of model output")
-    parser.add_argument("--reextract", action="store_true",
-                        help="Force re-extraction of data fields")
-
-    ## Optional parts
-    if valid_vars:
-        parser.add_argument("--vars", type=str, default=valid_vars,
-                            choices=valid_vars, nargs="+",
-                            help="Subset from valid vars, else extract all")
-    if var_groups:
-        parser.add_argument("--groups", type=str, default=var_groups,
-                            choices=var_groups, nargs="+",
-                            help="Subset from valid variable groups, else extract all")
-
-    return parser
-
-

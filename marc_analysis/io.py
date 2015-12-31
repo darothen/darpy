@@ -84,7 +84,7 @@ def load_variable(var_name, path_to_file,
 
     """
 
-    print("Loading %s from %s" % (var_name, path_to_file))
+    logger.info("Loading %s from %s" % (var_name, path_to_file))
 
     if method == "iris":
 

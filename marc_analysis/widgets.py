@@ -67,7 +67,7 @@ def four_panel_horizontal(var, src_dir=WORK_DIR,
         if debug: print("   max level", case_max_level)
         if np.abs(case_max_level) > max_level:
             max_level = case_max_level
-        
+
     if debug:
         print("Final max diff/level -", max_diff, max_level)
 
@@ -86,20 +86,20 @@ def four_panel_horizontal(var, src_dir=WORK_DIR,
         print("absolute slider range - ", 0., abs_top)
         print("                 step - ", step)
     abs_control = widgets.FloatSlider(description="Max Abs. Difference",
-                                      value=abs_top, 
+                                      value=abs_top,
                                       min=0., max=abs_top,
                                       width=150., step=step)
     rel_control = widgets.IntSlider(description="Max Rel. Difference",
-                                    value=50, 
+                                    value=50,
                                     min=0, max=150,
                                     width=150.)
-    reverse_cmap = widgets.Checkbox(description="Reverse colormap", 
+    reverse_cmap = widgets.Checkbox(description="Reverse colormap",
                                     value=False, width=150.)
     colormap_text = widgets.Text(description="Colormap on PD/PI",
                                  value="cubehelix_r")
     plot_button = widgets.Button(description="Make Plot")
     save_quality = widgets.Dropdown(description="Save quality",
-                                    options=["quick", "production", 
+                                    options=["quick", "production",
                                              "vector"])
     save_filename = widgets.Text(description="Save filename",
                                  value="%s_horiz_PD-PI" % var_name)

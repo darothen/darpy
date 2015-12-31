@@ -1,4 +1,7 @@
 
+import logging
+logger = logging.getLogger()
+
 import os
 import json
 import pkg_resources
@@ -9,7 +12,7 @@ from . io import load_variable
 from . extract import extract_variable
 
 """
-Utilities for storing and archiving information for 
+Utilities for storing and archiving information for
 extracting and plotting variable data from the experiment
 data archives.
 """
@@ -21,7 +24,7 @@ _TAB = "    "
 _CESM_VARS = None
 
 #######################################################################
-## Utility functions 
+## Utility functions
 
 def get_cesm_vars(reextract=True):
     """ Load in the saved dictionary of CESM vars. """
@@ -41,24 +44,24 @@ def get_cesm_vars(reextract=True):
         except FileNotFoundError:
             warnings.warn("Couldn't find CESM_default_vars archive")
             _CESM_vars_dict = None
-    else: 
+    else:
         CESM_vars_dict = _CESM_VARS
 
     return CESM_vars_dict
 
 def _extract_cesm_vars(nc_filename, out="CESM_default_vars.p"):
-    """ Extract all the CESM variables and their metadata from 
+    """ Extract all the CESM variables and their metadata from
     a given dataset. """
     import netCDF4 as nc
 
     d = nc.Dataset(nc_filename, 'r')
     all_vars = { key: { att: data.__dict__[att] for att in data.ncattrs() } \
                  for key, data in d.variables.items() }
-    print("... found %d variables" % (len(all_vars), ))
+    logger.debug("... found %d variables" % (len(all_vars), ))
 
     with open(out, 'wb') as f:
         pickle.dump(all_vars, f, protocol=2)
-    print("done. Saved to %s" % out)
+    logger.debug("done. Saved to %s" % out)
 
 def print_cesm_vars():
     """ Print a list of all the available CESM vars. """
@@ -67,16 +70,18 @@ def print_cesm_vars():
 
     for k, v in sorted(_CESM_VARS.items()):
 
-        print(k, " ")
+        logger.info(k)
         if ('long_name' in v) and ('units' in v) :
-            print(v['long_name'], "(%s)" % v['units'])
+            logger.info("{} ({})".format(
+                v['long_name'], v['units']
+            )
         else:
-            print("")
+            logger.info("")
 
 #######################################################################
 
 class VarList(list):
-    """ Special type of :class:`list` with some 
+    """ Special type of :class:`list` with some
     better handling for `Var` objects. Based on iris CubeLists
     as a learning example. """
 
@@ -90,7 +95,7 @@ class VarList(list):
     def __str__(self):
         result = [ "%s: %s" % (i, v) for i, v in enumerate(self) ]
 
-        if result: 
+        if result:
             result = "\n".join(result)
         else:
             result = "No Vars found."
@@ -118,7 +123,7 @@ class Var(object):
     def __init__(self, varname,  oldvar="", long_name="",
                  units="", scale_factor=1., ncap_str="", **kwargs):
 
-        """ Create a container in preparation for an analysis 
+        """ Create a container in preparation for an analysis
         pipeline.
 
         Parameters
@@ -126,11 +131,11 @@ class Var(object):
         varname : str
             A string to use as a convenient, short alias for the
             variable name; this will be the name in the attached
-            datasets for any new variable created during the 
+            datasets for any new variable created during the
             extraction process.
         oldvar : str or list of strs, optional
-            Either a str or a list of strs of the names of the 
-            variables which will be used to compose or create 
+            Either a str or a list of strs of the names of the
+            variables which will be used to compose or create
             this new variable.
         long_name : str, optional
             A descriptive, long-form name for this variable.
@@ -148,9 +153,9 @@ class Var(object):
         """
 
         self.varname = varname
-        if not oldvar: 
+        if not oldvar:
             self.oldvar = varname
-        else: 
+        else:
             self.oldvar = oldvar
 
         self.ncap_str = ncap_str
@@ -160,9 +165,9 @@ class Var(object):
 
         # Overwrite any attributes
         self.long_name = long_name
-        if long_name: 
+        if long_name:
             self.attributes['long_name'] = long_name
-        
+
         self.units = units
         if units:
             self.attributes['units'] = units
@@ -197,7 +202,7 @@ class Var(object):
     def extract(self, exp, years_omit=5, years_offset=0,
                 re_extract=False):
         """ Extract the dataset for a given var. """
-        
+
         extract_variable(exp, self, years_omit=years_omit,
                          years_offset=years_offset,
                          re_extract=re_extract)
@@ -228,8 +233,8 @@ class Var(object):
     #                       fix_times, **kwargs)
 
     def load_data(self, exp, method='xray', fix_times=False, **kwargs):
-        """ Load the data for this variable into xray DataSets and 
-        attach them to the current instance. 
+        """ Load the data for this variable into xray DataSets and
+        attach them to the current instance.
 
         Parameters
         ----------
@@ -275,10 +280,10 @@ class Var(object):
         self._loaded = True
 
     def to_dataarrays(self):
-        """ Convert the data loaded using `self.load_datasets()` 
+        """ Convert the data loaded using `self.load_datasets()`
         into DataArrays containing only the variable described by
         this. """
-        
+
         self.apply(lambda ds: ds[self.varname])
 
     @property
@@ -296,12 +301,12 @@ class Var(object):
         self._loaded = False
 
     @property
-    def data(self):        
+    def data(self):
         if not self._loaded:
             raise Exception("Data has not yet been loaded into memory")
         return self._data
     @data.deleter
-    def data(self):       
+    def data(self):
         if not self._loaded:
             raise Exception("Data has not yet been loaded into memory")
         self._data = None
@@ -329,10 +334,10 @@ class Var(object):
         if self._loaded:
             data_type= type(next(iter(self.data.values()))).__name__
             out += "\n[ loaded -> %s(%r)]" % (data_type, self._cases)
-        
+
         if not (self.oldvar == self.varname):
             olv_str = self.oldvar if isinstance(self.oldvar, str) \
-                                  else ",".join(self.oldvar) 
+                                  else ",".join(self.oldvar)
             out += "\n" + _TAB + "from fields " + olv_str
         if self.ncap_str:
             out += "\n" + _TAB + "NCAP func: " + self.ncap_str
@@ -366,11 +371,11 @@ class Var(object):
 
 class CDOVar(Var):
 
-    def __init__(self, varname, 
+    def __init__(self, varname,
                  lev_bnds=None, cdo_method=[], **kwargs):
         super(self.__class__, self).__init__(varname, **kwargs)
 
-        if lev_bnds is not None: 
+        if lev_bnds is not None:
             self.lev_bnds = lev_bnds
         if cdo_method:
             self.cdo_method = cdo_method
@@ -396,10 +401,10 @@ class CDOVar(Var):
 
         assert isinstance(other, (Var, CESMVar))
 
-        other_dict = dict(oldvar=other.oldvar, 
+        other_dict = dict(oldvar=other.oldvar,
                           long_name=other.long_name,
                           units=other.units,
-                          scale_factor=other.scale_factor, 
+                          scale_factor=other.scale_factor,
                           ncap_str=other.ncap_str)
 
         return cls(varname, lev_bnds, cdo_method, **other_dict)
@@ -453,10 +458,10 @@ class MultiVar(Var):
                        )
 
 class CESMVar(Var):
-    """ Raw variables from CESM which require no pre-processing, 
-    save for renaming operations. 
+    """ Raw variables from CESM which require no pre-processing,
+    save for renaming operations.
 
-    Use oldvar->varname renaming if it's passed as an argument to the 
+    Use oldvar->varname renaming if it's passed as an argument to the
     constructor.
 
     """
@@ -467,7 +472,7 @@ class CESMVar(Var):
             get_cesm_vars()
 
         ## Be sure there is a variable to extract!
-        if oldvar: 
+        if oldvar:
             assert oldvar in _CESM_VARS
             var_attrs = _CESM_VARS[oldvar]
         else:
@@ -480,8 +485,8 @@ class CESMVar(Var):
         if (not units) and ('units' in var_attrs):
             units = var_attrs['units']
 
-        super(self.__class__, self).__init__(varname, oldvar, 
-                                             long_name=long_name, 
+        super(self.__class__, self).__init__(varname, oldvar,
+                                             long_name=long_name,
                                              units=units, **kwargs)
 
 ## Deprecated on transition to `marc_analysis` package
@@ -621,7 +626,7 @@ class common_vars:
 # BASE_VARS = [
 #     CESMVar("AREL", "Average droplet effective radius", "micron"),
 #     CESMVar("CCN3", 'CDNC at 0.1% Supersaturation', 'cm-3'),
-#     Var("CDNC", ("AWNC", "FREQL"), 
+#     Var("CDNC", ("AWNC", "FREQL"),
 #         long_name="Cloud Droplet Number Concentration", units="cm-3",
 #         scale_factor=1e-6,
 #         ncap_str="CDNC=0.0*AWNC; where(FREQL>0.0) CDNC=AWNC/FREQL" ),
@@ -637,14 +642,14 @@ class common_vars:
 #            long_name="In-cloud low-cloud optical thickness", units="1",
 #            lev_bnds=(23, 27), cdo_method=["vertsum", ]),
 
-#     Var("LWP", "TGCLDLWP", 
+#     Var("LWP", "TGCLDLWP",
 #         {"long_name": "Vertically-integrated cloud liquid water path",
 #          "units": "kg/m2"},
 #         None, ["vertsum"], None),
 # ]
 # BASE_VARS_TABLE = { v.newvar: v for v in BASE_VARS }
 
-# # LOW_VARS_TABLE = { v.newvar: v for 
+# # LOW_VARS_TABLE = { v.newvar: v for
 # #     CDOVar.low_var(v for v )
 # # }
 # # ]

@@ -1,3 +1,7 @@
+
+import logging
+logger = logging.getLogger()
+
 import os, re
 from pandas import DataFrame
 from subprocess import call
@@ -135,21 +139,21 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     if not save_dir:
         save_dir = exp.work_dir
 
-    print()
-    print("---------------------------------")
-    print("Processing {} from CESM output".format(var.oldvar))
-    print("   experiment: {} ".format(exp.name))
-    print("   for cases:")
+    debugdebug()
+    logger.debug("---------------------------------")
+    logger.debug("Processing {} from CESM output".format(var.oldvar))
+    logger.debug("   experiment: {} ".format(exp.name))
+    logger.debug("   for cases:")
     for case, case_name, case_vals in exp.itercases():
-        print("      %s (%s) - %r" % (case_name, case, case_vals))
-    print("   omitting %d years" % years_omit)
+        logger.info("      %s (%s) - %r" % (case_name, case, case_vals))
+    logger.info("   omitting %d years" % years_omit)
 
     if hasattr(var, 'lev_bnds'):
-        print("   for levels %r" % var.lev_bnds)
+        logger.debug("   for levels %r" % var.lev_bnds)
     if hasattr(var, 'cdo_method'):
-        print("   applying methods %r" % var.cdo_method)
+        logger.debug("   applying methods %r" % var.cdo_method)
     else:
-        print("   No cdo method applied")
+        logger.debug("   No cdo method applied")
 
     intermediates = []
 
@@ -158,16 +162,16 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     if combine:
         comb_vars = var.oldvar[:]
         assert var.varname # make sure it was provided!
-        print("   will combine %r to compute %s" % (comb_vars, var.varname))
-        print("   using %s" % var.ncap_str if var.ncap_str else "simple addition")
+        logger.debug("   will combine %r to compute %s" % (comb_vars, var.varname))
+        logger.debug("   using %s" % var.ncap_str if var.ncap_str else "simple addition")
         oldvar_extr = ",".join(comb_vars)
     else:
         oldvar_extr = var.oldvar
         if not var.varname: var.varname = var.oldvar
 
     for i, case_bits in enumerate(exp.all_cases()):
-        print()
-        print("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
+        logger.debug()
+        logger.debug("   %02d) [%s]" % (i+1, ', '.join(case_bits)))
 
         retained_files = []
 
@@ -185,7 +189,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
 
         # pre-pend path
         file_list = [ os.path.join(path_to_data, fn) for fn in file_list ]
-        print("      Found {} files".format(len(file_list)))
+        logger.debug("      Found {} files".format(len(file_list)))
         in_file = " ".join(file_list)
 
         out_file = os.path.join(save_dir, fn_extr)
@@ -200,7 +204,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         retained_files.append(out_file)
 
         if ( re_extract or not os.path.exists(out_file_final) ):
-            print("      Extracting from original dataset")
+            logger.debug("      Extracting from original dataset")
 
             # These are important metadata vars (vertical coord system,
             # time, etc) which we will always want to save
@@ -217,7 +221,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
                      shell=True)
 
             if combine:
-                print("      combining vars")
+                logger.debug("      combining vars")
                 ncap2_args = ["ncap2", "-O", "-s",
                               "%s=%s" % (var.varname, "+".join(comb_vars)),
                               out_file, "-o", out_file]
@@ -251,17 +255,17 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
                 "-a", "git_commit,global,o,c,%s" % get_git_versioning(),
             ]
             if hasattr(var, 'attributes'):
-                print("      modifying var attributes")
+                logger.debug("      modifying var attributes")
                 for att, val in var.attributes.items():
                     dtype = { int: 'i',
                               str: 'c',
                               float: 'f', }[type(val)]
-                    print("         %s: %s (%s)" % (att, val, dtype))
+                    logger.debug("         %s: %s (%s)" % (att, val, dtype))
 
                     att_list.extend(["-a", "%s,%s,o,%s,%s" % \
                                      (att, var.varname, dtype, val)])
                 if years_offset > 0:
-                    print("         adding time offset")
+                    logger.debug("         adding time offset")
                     att_list.extend(["-a", 'units,time,o,c,days since %04d-01-01 00:00:00' %
                                            years_offset])
             if att_list:
@@ -271,7 +275,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
             remove_intermediates(intermediates)
 
             call(['mv', out_file, out_file_final])
-            print("      ...done -> %s" % out_file_final)
+            logger.debug("      ...done -> %s" % out_file_final)
 
         else:
-            print("      Extracted dataset already present.")
+            logger.debug("      Extracted dataset already present.")
