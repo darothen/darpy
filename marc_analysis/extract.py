@@ -139,7 +139,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
     if not save_dir:
         save_dir = exp.work_dir
 
-    debugdebug()
+    logger.debug()
     logger.debug("---------------------------------")
     logger.debug("Processing {} from CESM output".format(var.oldvar))
     logger.debug("   experiment: {} ".format(exp.name))
