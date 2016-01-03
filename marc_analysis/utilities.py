@@ -2,7 +2,7 @@
 import logging
 logger = logging.getLogger()
 
-import os
+import os, sys
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
@@ -42,6 +42,45 @@ def get_git_versioning():
     return check_output(
         ['git', 'rev-parse', '--short', 'HEAD']
     ).strip()
+
+def append_history(ds, call_str=None, extra_info=None):
+    """ Add a line to a Dataset's history record indicating the
+    current calling context or operation.
+
+    Parameters
+    ----------
+    ds : xray.Dataset
+        The Dataset to append history information to
+    call_str : str, optional
+        The full calling path of the operation - including the script
+        name and arguments. If not passed, will grab from sys.argv
+    extra_info : str, optional
+        Additional info to include in the history statement
+
+    Returns
+    -------
+    Dataset with appended history
+
+    """
+    try:
+        history = ds.attrs['history']
+    except KeyError:
+        history = ""
+    now = datetime.now()
+
+    # Create the call string if not passed explicitly
+    if call_str is None:
+        call_str = " ".join(sys.argv)
+    # Append extra info if passed
+    if extra_info is not None:
+        call_str += " ({})".format(extra_info)
+
+    history = (now.strftime("%a %b %d %H:%M:%S %Y") +
+               ": {}\n".format(call_str) +
+               history)
+    ds.attrs['history'] = history
+
+    return ds
 
 def get_timestamp(time=True, date=True, fmt=None):
     """ Return the current timestamp in machine local time.
