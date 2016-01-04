@@ -245,7 +245,7 @@ def horiz(cfg, projection, lims, cmap, method):
     darray = read_field_from_file(cfg.field, cfg.in_fn)
 
     # Get plot aesthetic details
-    cmap_kws = dict(levels=21, robust=True)
+    cmap_kws = dict(levels=21, robust=True, extend='both')
     if lims:
         cmap_kws['vmin'] = min(lims)
         cmap_kws['vmax'] = max(lims)
@@ -253,7 +253,6 @@ def horiz(cfg, projection, lims, cmap, method):
         cmap_kws['cmap'] = cmap
     cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
     print_dict(cmap_kws, "Plot aesthetics")
-    f
 
     # Iterate over the selected cases
     logger.debug("\nselecting case...")
