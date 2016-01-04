@@ -214,7 +214,7 @@ def add_colorbar(mappable, fig=None, ax=None, thickness=0.025,
         cb = colorbar(mappable, ax=ax, pad=pad, orientation=orientation)
     else:
         # Plot onto Figure's set of axes
-        axes = fig.get_axes()
+        axes = fig.axes
 
         # Get coordinates for making the colorbar
         ul = axes[0]

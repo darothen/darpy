@@ -24,16 +24,16 @@ import click
 class PlotConfig(object):
     """ Container to pass plot configuration options to sub-commands. """
     def __init__(self, field, in_fn, cases=[], out_fn=""):
-        logger.debug("\nPlotConfig: ")
+        logger.info("Quick plot config: ")
         self.field = field
-        logger.debug("   field: " + field)
+        logger.info("   field: " + field)
         self.in_fn = in_fn
-        logger.debug("   in.nc: " + in_fn)
+        logger.info("   in.nc: " + in_fn)
         self.cases = cases
         self.out_fn = out_fn
         self.show = not out_fn
         if not self.show:
-            logger.debug("     out: " + out_fn)
+            logger.info("     out: " + out_fn)
 
         self.case_dict = self.process_cases(cases)
 
@@ -46,7 +46,7 @@ class PlotConfig(object):
     def process_cases(cases):
         """ Process 'cases' argument supplied to the argument parser. See
         __doc__ in `cli()` for more complete information. """
-        logger.debug("PlotConfig: Processing cases")
+        logger.info("Processing cases:")
 
         case_dict = {}
         if not cases:
@@ -62,11 +62,10 @@ class PlotConfig(object):
         # cases4 = ["act=arg_comp,nenes_comp", "lev=30,28"]
         # result2 = {'act':['arg_comp', 'nenes_comp',], 'lev': ['30', '28',]}
 
-        logger.debug("cases:")
         for i, case in enumerate(cases, 1):
             dim, vals = case.split("=")
             vals = vals.split(",")
-            logger.debug("   {}) {} = {}".format(i, dim, vals))
+            logger.info("   {}) {} = {}".format(i, dim, vals))
             case_dict[dim] = vals
 
         return case_dict
