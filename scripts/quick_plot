@@ -388,7 +388,7 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
                                  **kwargs)
 
         colors[case_label] = lp[0].get_color()
-    else:
+    if not cases:
         ax, lp = maplt.line_plot(darray, dim=dim, ax=ax,
                                  **kwargs)
 
