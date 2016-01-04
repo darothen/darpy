@@ -79,5 +79,5 @@ setup(name=NAME,
                             'data/ne_110m_ocean.shp',
                             'data/ne_110m_land.shp',  ],
       },
-      scripts=['scripts/calc_aerosol', ],
+      scripts=['scripts/calc_aerosol', 'scripts/quick_plot'],
 )
