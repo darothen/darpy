@@ -379,7 +379,6 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
         kwargs[key] = val
 
     colors = {}
-    print(darray.time)
     for i, case in enumerate(cases):
         case_label = "_".join(case.values())
         logger.debug("   {}) {}".format(i+1, case_label))
