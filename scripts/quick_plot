@@ -71,16 +71,21 @@ class PlotConfig(object):
 
         return case_dict
 
-    def itercases(self):
+    @staticmethod
+    def _get_itercases(case_dict):
         """ Generator for iterating over all the selectors for
         extracting individual cases from the datset. """
-
-        dims, vals = self.case_dict.keys(), self.case_dict.values()
+        dims, vals = case_dict.keys(), case_dict.values()
         single_cases = [dict(zip(dims, _vals_subset))
                         for _vals_subset in product(*vals)]
 
         for case in single_cases:
             yield case
+
+    def itercases(self):
+        return self._get_itercases(self.case_dict)
+
+
 pass_cfg = click.make_pass_decorator(PlotConfig, ensure=True)
 
 
@@ -296,72 +301,115 @@ def horiz(cfg, projection, lims, cmap, method):
 
 
 @plotter.command()
+@click.argument("dim", metavar="<dim>", type=str)
 @click.option("-l", "--lims", nargs=2, type=float,
               help="Colorbar low/high limit")
 @click.option("--add-zero", is_flag=True,
               help="Plot the line y=0 on the figure")
+@click.option("--palette", type=str,
+              help="Seaborn or Matplotlib color palette to use")
+@click.option("--plot-kwargs", multiple=True, type=str,
+              help="Additional keyword arguments")
 @pass_cfg
-def zonal(cfg, projection, lims, cmap):
+def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
     """
     \b
-    Global horizontal plot of a <field> from the file <in.nc>. If
-    passed as an argument, will save the resulting plot in [plot_filename]
+    Quick line plot as a function of a given dim. Additional keyword arguments
+    to control the plot aesthetics can be passed using the "--plot-kwargs" flag
+    like this:
+
+        ./quick_plot ... line <dim> --plot-kwargs lw=2 linestyle='dotted'
 
     \b
-    If '--levels' isn't passed, will automatically infer reasonable
-    colorbar limits. Else, must pass the low and high thresholds
-    for constructing the colorbar (vmin/vmax). Additionally, only a single
-    case will be plotted per run of this tool.
+    Some specified dimensions have pre-defined styles. For instance:
+        'lat' - zonal plot
+        'time' - timeseries plot with date-format axis
+
+    \b
+    Arguments:
+        dim    Dimension to plot along.
 
     """
-    logger.info("\nGLOBAL PLOT - HORIZONTAL")
+    logger.info("\nLINE PLOT - {}".format(dim))
 
     # Read in file
-    darray = read_field_from_file(cfg.field, cfg.in_fn)
-
-    # Get plot aesthetic details
-    cmap_kws = dict(levels=21, robust=True)
-    if lims:
-        cmap_kws['vmin'] = min(lims)
-        cmap_kws['vmax'] = max(lims)
-    if cmap:
-        cmap_kws['cmap'] = cmap
-    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+    darray = read_field_from_file(cfg.field, cfg.in_fn).squeeze()
 
     # Iterate over the selected cases
+    logger.debug("\nCases -")
     if cfg.cases:
-        case = next(cfg.itercases())
-        logger.debug("case: {}".format(case))
-        d_case = darray.sel(**case).load()
-        title_str = " ".join(["{}={}".format(dim, val)
-                              for dim, val in case.items()])
+        # Cases were explicitly passed
+        cases = []
+        for case in cfg.itercases():
+            cases.append(case)
+            logger.debug("   {}".format(case))
     else:
-        logger.debug("case: No specific cases requested")
-        d_case = darray.load()
-        title_str = ""
+        # Construct cases based on what's in the dataset
+        all_coords = list(darray.coords)
+        all_coords.remove(dim)
 
-    # Actual plot logic
-    logger.debug("Creating plot...")
-    ax, gp = maplt.geo_plot(d_case, cmap_kws=cmap_kws,
-                            projection=projection)
-    fig = ax.get_figure()
-    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
-                            pad=0.02, shrink=0.15)
-    try:
-        cb.set_label("[{}]".format(d_case.units), labelpad=10,
-                     rotation=270)
-        plt.draw()
-    except:
-        logger.debug("no units found for labelling colorbar")
-        pass
-    ax.set_title(title_str, loc='right')
-    ax.set_title(cfg.field, loc='left')
+        cases = []
+        try:
+            case_dict = {case: darray[case].values for case in all_coords}
+            for case in cfg._get_itercases(case_dict):
+                cases.append(case)
+                logger.debug("   {}".format(case))
+        except:
+            logger.debug("... there were no extra cases to consider plotting")
+
+    if palette:
+        # Customize the color palette, if requested. Best to do it here
+        # after we know how many cases, so we can use the best set of
+        # choices from the requested palette.
+        sns.set_palette(palette, len(cases))
+
+    # Plot each case
+    logger.debug("\nCreating plot...")
+    fig, axes = maplt.multipanel_figure(1, 1, size=4.)
+    ax = axes[0,0]
+
+    # Process addtional kwargs
+    kwargs = {}
+    for token in plot_kwargs:
+        key, val = token.split("=")
+        try:
+            val = float(val)
+        except:
+            pass
+        kwargs[key] = val
+
+    colors = {}
+    print(darray.time)
+    for i, case in enumerate(cases):
+        case_label = "_".join(case.values())
+        logger.debug("   {}) {}".format(i+1, case_label))
+        d_case = darray.sel(**case).load()
+
+        ax, lp = maplt.line_plot(d_case, dim=dim, label=case_label, ax=ax,
+                                 **kwargs)
+
+        colors[case_label] = lp[0].get_color()
+    else:
+        ax, lp = maplt.line_plot(darray, dim=dim, ax=ax,
+                                 **kwargs)
+
+    if lims:
+        ax.set_ylim(lims[0], lims[1])
+
+    if colors:
+        _ = maplt.colortext_legend(colors, loc='upper left', frameon=False,
+                                   bbox_to_anchor=[0.92, 1.0], fontsize=12)
+
+    if add_zero:
+        xlims = ax.get_xlim()
+        ax.hlines(0., xlims[0], xlims[-1], color='k', linestyle='dashed')
 
     # Output handling
     if cfg.show:
         plt.show(block=True)
     else:
         save_figure(fig, cfg.out_fn)
+
 
 if __name__ == "__main__":
     plotter()
