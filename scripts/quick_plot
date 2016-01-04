@@ -1,0 +1,279 @@
+#!/usr/bin/env python
+"""
+Quickly plot a field from a netCDF file.
+
+"""
+
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger()
+
+import os
+import sys
+import xray
+from itertools import product
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import marc_analysis.plot as maplt
+
+import click
+
+
+class PlotConfig(object):
+    """ Container to pass plot configuration options to sub-commands. """
+    def __init__(self, field, in_fn, cases=[], out_fn=""):
+        logger.debug("\nPlotConfig: ")
+        self.field = field
+        logger.debug("   field: " + field)
+        self.in_fn = in_fn
+        logger.debug("   in.nc: " + in_fn)
+        self.cases = cases
+        self.out_fn = out_fn
+        self.show = not out_fn
+        if not self.show:
+            logger.debug("     out: " + out_fn)
+
+        self.case_dict = self.process_cases(cases)
+
+    def set_cases(self, cases):
+        logger.debug("PlotConfig: Resetting cases to {}".format(cases))
+        self.cases = cases
+        self.case_dict = self.process_cases(cases)
+
+    @staticmethod
+    def process_cases(cases):
+        """ Process 'cases' argument supplied to the argument parser. See
+        __doc__ in `cli()` for more complete information. """
+        logger.debug("PlotConfig: Processing cases")
+
+        case_dict = {}
+        if not cases:
+            logger.debug("PlotConfig: ... none specified")
+            return case_dict
+
+        # cases1 = ["act=arg_comp", ]
+        # result1 = {'act': ['arg_comp', ]}
+        # cases2 = ["act=arg_comp", "lev=30"]
+        # result2 = {'act':['arg_comp', ], 'lev': ['30', ]}
+        # cases3 = ["act=arg_comp,nenes_comp", ]
+        # result1 = {'act': ['arg_comp', 'nenes_comp']}
+        # cases4 = ["act=arg_comp,nenes_comp", "lev=30,28"]
+        # result2 = {'act':['arg_comp', 'nenes_comp',], 'lev': ['30', '28',]}
+
+        logger.debug("cases:")
+        for i, case in enumerate(cases, 1):
+            dim, vals = case.split("=")
+            vals = vals.split(",")
+            logger.debug("   {}) {} = {}".format(i, dim, vals))
+            case_dict[dim] = vals
+
+        return case_dict
+
+    def itercases(self):
+        """ Generator for iterating over all the selectors for
+        extracting individual cases from the datset. """
+
+        dims, vals = self.case_dict.keys(), self.case_dict.values()
+        single_cases = [dict(zip(dims, _vals_subset))
+                        for _vals_subset in product(*vals)]
+
+        for case in single_cases:
+            yield case
+pass_cfg = click.make_pass_decorator(PlotConfig, ensure=True)
+
+
+# Utility functions
+def read_field_from_file(field, in_fn):
+    """ Read a specific field from a netCDF file. """
+    logger.debug("Reading '{}' from {}".format(field, in_fn))
+    data = xray.open_dataset(in_fn)[field]
+    logger.debug("\n{}".format(field))
+    logger.debug("-"*len(field))
+    for attr, val in data.attrs.items():
+        logger.debug("   {}: {}".format(attr, val))
+    logger.debug("")
+    return data
+
+
+def save_figure(fig, out_fn):
+    """ Save a figure with presets for different output
+    qualities. """
+    logger.debug("Saving to {}".format(out_fn))
+
+    _, fmt = os.path.splitext(out_fn)
+    fmt = fmt[1:] # Strip off '.'
+
+    fig_dict = {'bbox_inches': 'tight'}
+    if fmt == "png":
+        fig_dict['dpi'] = 150
+    elif fmt == "pdf":
+        fig_dict['transparent'] = True
+    else:
+        raise ValueError("Output format should be either 'png'"
+                         " or 'pdf', got {}".format(fmt))
+    logger.debug("\nOutput")
+    logger.debug("------")
+    for key, val in fig_dict.items():
+        logger.debug("   {}: {}".format(key, val))
+
+    fig.savefig(out_fn, **fig_dict)
+    logger.debug("... done")
+
+
+@click.group()
+@click.argument("in_fn", metavar="<in.nc>", type=click.Path(exists=True))
+@click.argument("field", metavar="<field>")
+@click.option("-c", "--cases",
+              metavar="[--cases <dim1>[=val1(,val2,...)] [...]]",
+              multiple=True, type=str)
+@click.option("-d", "--debug", is_flag=True,
+              help="Enable debug/verbose logging")
+@click.option("-o", "--out", type=str,
+              help="Name of output figure, if user wished to save it.")
+@click.pass_context
+def plotter(ctx, in_fn, field, cases, debug, out):
+    """
+    Quickly plot a field from a netCDF file.
+
+    ------------------------------------------------------------------------
+
+    Depending on the arguments supplied, this script can behave in different
+    ways. Here is a short summary of these options:
+
+    \b
+    - 'out_fn': if not supplied, then any plots generated will be displayed to
+                the standard terminal window
+
+    \b
+    Dimension Selection
+    -------------------
+
+    \b
+    This script implements a crude scheme to select what subsets of data in a
+    given file the user wants to plot, based on the dimensional selection
+    notation from xray. The parameter '-c/--cases' implements this logic as
+    follows:
+
+        quick_plot [--cases <dim1>[=val1(,val2,...)] [...]] <in.nc>
+
+    Starting with the simplest case,
+
+        quick_plot --cases dim1=val1 <in.nc>
+
+    \b
+    this is equivalent to the xray call `ds.sel(dim1=val1)`. Additional values
+    of that same dimension can be supplied by separating them with a comma,
+
+        quick_plot --cases dim1=val1,val2,... <in.nc>
+
+    \b
+    which is equivalent to the xray call `ds.sel(dim1=[val1,val2,...]). This
+    sort of selection can be combined with as many different dimensions as one
+    wants as long as they're separated by a blank space. So an example of a
+    more complex selection might be:
+
+        quick_plot --cases aer=PD act=arg_comp,nenes_comp,pcm_comp <in.nc>
+
+    \b
+    Generally speaking, the plotter will use the cartesian product of these
+    case selectors when subsetting data from a given file. In some cases,
+    though, only a single case is plotted; if the user specifies more than
+    one, then only the first one will be plotted and a warning will be
+    issued.
+
+    \b
+    Arguments:
+        in.nc         Input netCDF filename, containing the field to plot
+        field         Field to plot from the input file
+        cases         Selection of cases to plot, if required
+
+    """
+    if debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
+
+    if not out:
+        logger.debug("Disabling file saving; enabling interactive mode")
+        plt.ion()
+    else:
+        plt.ioff()
+
+    ctx.obj = PlotConfig(field=field, in_fn=in_fn, cases=cases,
+                         out_fn=out)
+
+
+@plotter.command()
+@click.option("-p", "--projection", default="PlateCarree",
+              help="Map projection; defaults to PlateCarree")
+@click.option("-l", "--lims", nargs=2, type=float,
+              help="Colorbar low/high limit")
+@click.option("--cmap", type=str,
+              help="Name of palette/colormap for plotting")
+@pass_cfg
+def horiz(cfg, projection, lims, cmap):
+    """ Global horizontal plot of a <field> from the file <in.nc>. If
+    passed as an argument, will save the resulting plot in [plot_filename]
+
+    \b
+    If '--levels' isn't passed, will automatically infer reasonable
+    colorbar limits. Else, must pass the low and high thresholds
+    for constructing the colorbar (vmin/vmax). Additionally, only a single
+    case will be plotted per run of this tool.
+
+    """
+    logger.info("\nGLOBAL PLOT - HORIZONTAL")
+
+    # Read in file
+    darray = read_field_from_file(cfg.field, cfg.in_fn)
+
+    # Get plot aesthetic details
+    cmap_kws = dict(levels=21, robust=True)
+    if lims:
+        cmap_kws['vmin'] = min(lims)
+        cmap_kws['vmax'] = max(lims)
+    if cmap:
+        cmap_kws['cmap'] = cmap
+    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+
+    def _plot_horiz(data, title_str=""):
+        """ Helper function for making the actual global plot. """
+
+    # Iterate over the selected cases
+    if cfg.cases:
+        case = next(cfg.itercases())
+        logger.debug("case: {}".format(case))
+        d_case = darray.sel(**case).load()
+        title_str = " ".join(["{}={}".format(dim, val)
+                              for dim, val in case.items()])
+    else:
+        logger.debug("case: No specific cases requested")
+        d_case = darray.load()
+        title_str = ""
+
+    # Actual plot logic
+    logger.debug("Creating plot...")
+    ax, gp = maplt.geo_plot(d_case, cmap_kws=cmap_kws,
+                            projection=projection)
+    fig = ax.get_figure()
+    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+                            pad=0.02, shrink=0.15)
+    try:
+        cb.set_label("[{}]".format(d_case.units), labelpad=10,
+                     rotation=270)
+        plt.draw()
+    except:
+        logger.debug("no units found for labelling colorbar")
+        pass
+    ax.set_title(title_str, loc='right')
+    ax.set_title(cfg.field, loc='left')
+
+    # Output handling
+    if cfg.show:
+        plt.show(block=True)
+    else:
+        save_figure(fig, cfg.out_fn)
+
+
+if __name__ == "__main__":
+    plotter()
