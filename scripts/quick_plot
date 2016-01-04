@@ -8,6 +8,7 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger()
 
+import inspect
 import os
 import sys
 import xray
@@ -88,11 +89,7 @@ def read_field_from_file(field, in_fn):
     """ Read a specific field from a netCDF file. """
     logger.debug("Reading '{}' from {}".format(field, in_fn))
     data = xray.open_dataset(in_fn)[field]
-    logger.debug("\n{}".format(field))
-    logger.debug("-"*len(field))
-    for attr, val in data.attrs.items():
-        logger.debug("   {}: {}".format(attr, val))
-    logger.debug("")
+    print_dict(data.attrs, field)
     return data
 
 
@@ -112,15 +109,22 @@ def save_figure(fig, out_fn):
     else:
         raise ValueError("Output format should be either 'png'"
                          " or 'pdf', got {}".format(fmt))
-    logger.debug("\nOutput")
-    logger.debug("------")
-    for key, val in fig_dict.items():
-        logger.debug("   {}: {}".format(key, val))
+    print_dict(fig_dict, "Output")
 
     fig.savefig(out_fn, **fig_dict)
     logger.debug("... done")
 
 
+def print_dict(d, title='', tab="   "):
+    """ Pretty-print a dictionary 'd' to the console. """
+    if title:
+        logger.debug("\n"+title)
+        logger.debug("-"*len(title))
+    for key, val in d.items():
+        logger.debug(tab + "{}: {}".format(key, val))
+
+
+# Command-line interface
 @click.group()
 @click.argument("in_fn", metavar="<in.nc>", type=click.Path(exists=True))
 @click.argument("field", metavar="<field>")
@@ -138,12 +142,15 @@ def plotter(ctx, in_fn, field, cases, debug, out):
 
     ------------------------------------------------------------------------
 
-    Depending on the arguments supplied, this script can behave in different
-    ways. Here is a short summary of these options:
+    \b
+    Output
+    ------
 
     \b
-    - 'out_fn': if not supplied, then any plots generated will be displayed to
-                the standard terminal window
+    The script can either immediately display a plot, or save it to disk, but
+    these behaviors are mutually exclusive. To save a a figure, pass an output
+    filename to the option '-o/--out'. The format and settings will be
+    inferred from the extension of the file.
 
     \b
     Dimension Selection
@@ -152,20 +159,21 @@ def plotter(ctx, in_fn, field, cases, debug, out):
     \b
     This script implements a crude scheme to select what subsets of data in a
     given file the user wants to plot, based on the dimensional selection
-    notation from xray. The parameter '-c/--cases' implements this logic as
-    follows:
+    notation from xray. In general, this option must be explicitly passed
+    (following the examples below). The option '-c/--cases' implements this
+    logic as follows:
 
-        quick_plot [--cases <dim1>[=val1(,val2,...)] [...]] <in.nc>
+        quick_plot [--cases <dim1>[=val1(,val2,...)] [...]] <in.nc> ...
 
     Starting with the simplest case,
 
-        quick_plot --cases dim1=val1 <in.nc>
+        quick_plot --cases dim1=val1 <in.nc> ...
 
     \b
     this is equivalent to the xray call `ds.sel(dim1=val1)`. Additional values
     of that same dimension can be supplied by separating them with a comma,
 
-        quick_plot --cases dim1=val1,val2,... <in.nc>
+        quick_plot --cases dim1=val1,val2,... <in.nc> ...
 
     \b
     which is equivalent to the xray call `ds.sel(dim1=[val1,val2,...]). This
@@ -173,7 +181,7 @@ def plotter(ctx, in_fn, field, cases, debug, out):
     wants as long as they're separated by a blank space. So an example of a
     more complex selection might be:
 
-        quick_plot --cases aer=PD act=arg_comp,nenes_comp,pcm_comp <in.nc>
+        quick_plot --cases aer=PD act=arg_comp,nenes_comp,pcm_comp <in.nc> ...
 
     \b
     Generally speaking, the plotter will use the cartesian product of these
@@ -186,7 +194,7 @@ def plotter(ctx, in_fn, field, cases, debug, out):
     Arguments:
         in.nc         Input netCDF filename, containing the field to plot
         field         Field to plot from the input file
-        cases         Selection of cases to plot, if required
+
 
     """
     if debug:
@@ -210,9 +218,13 @@ def plotter(ctx, in_fn, field, cases, debug, out):
               help="Colorbar low/high limit")
 @click.option("--cmap", type=str,
               help="Name of palette/colormap for plotting")
+@click.option("-m", "--method", type=str, default='contourf',
+              help="matplotlib plotting method to use")
 @pass_cfg
-def horiz(cfg, projection, lims, cmap):
-    """ Global horizontal plot of a <field> from the file <in.nc>. If
+def horiz(cfg, projection, lims, cmap, method):
+    """
+    \b
+    Global horizontal plot of a <field> from the file <in.nc>. If
     passed as an argument, will save the resulting plot in [plot_filename]
 
     \b
@@ -235,9 +247,86 @@ def horiz(cfg, projection, lims, cmap):
     if cmap:
         cmap_kws['cmap'] = cmap
     cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+    print_dict(cmap_kws, "Plot aesthetics")
+    f
 
-    def _plot_horiz(data, title_str=""):
-        """ Helper function for making the actual global plot. """
+    # Iterate over the selected cases
+    logger.debug("\nselecting case...")
+    if cfg.cases:
+        case = next(cfg.itercases())
+        logger.debug("case: {}".format(case))
+        d_case = darray.sel(**case).load()
+        title_str = " ".join(["{}={}".format(dim, val)
+                              for dim, val in case.items()])
+    else:
+        logger.debug("case: No specific cases requested")
+        d_case = darray.load()
+        title_str = ""
+
+    # Actual plot logic
+    logger.debug("\nCreating plot...")
+    try:
+        ax, gp = maplt.geo_plot(d_case, method=method, projection=projection,
+                                **cmap_kws)
+    except:
+        # The plotting method doesn't like all the cmap_kws, so just use
+        # vmin/vmax and cmap
+        ax, gp = maplt.geo_plot(d_case, method=method, projection=projection,
+                                vmin=cmap_kws['vmin'], vmax=cmap_kws['vmax'],
+                                cmap=cmap_kws['cmap'])
+
+    fig = ax.get_figure()
+    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+                            pad=0.02, shrink=0.15)
+    try:
+        cb.set_label("[{}]".format(d_case.units), labelpad=10,
+                     rotation=270)
+        plt.draw()
+    except:
+        logger.debug("no units found for labelling colorbar")
+        pass
+    ax.set_title(title_str, loc='right')
+    ax.set_title(cfg.field, loc='left')
+
+    # Output handling
+    if cfg.show:
+        plt.show(block=True)
+    else:
+        save_figure(fig, cfg.out_fn)
+
+
+@plotter.command()
+@click.option("-l", "--lims", nargs=2, type=float,
+              help="Colorbar low/high limit")
+@click.option("--add-zero", is_flag=True,
+              help="Plot the line y=0 on the figure")
+@pass_cfg
+def zonal(cfg, projection, lims, cmap):
+    """
+    \b
+    Global horizontal plot of a <field> from the file <in.nc>. If
+    passed as an argument, will save the resulting plot in [plot_filename]
+
+    \b
+    If '--levels' isn't passed, will automatically infer reasonable
+    colorbar limits. Else, must pass the low and high thresholds
+    for constructing the colorbar (vmin/vmax). Additionally, only a single
+    case will be plotted per run of this tool.
+
+    """
+    logger.info("\nGLOBAL PLOT - HORIZONTAL")
+
+    # Read in file
+    darray = read_field_from_file(cfg.field, cfg.in_fn)
+
+    # Get plot aesthetic details
+    cmap_kws = dict(levels=21, robust=True)
+    if lims:
+        cmap_kws['vmin'] = min(lims)
+        cmap_kws['vmax'] = max(lims)
+    if cmap:
+        cmap_kws['cmap'] = cmap
+    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
 
     # Iterate over the selected cases
     if cfg.cases:
@@ -273,7 +362,6 @@ def horiz(cfg, projection, lims, cmap):
         plt.show(block=True)
     else:
         save_figure(fig, cfg.out_fn)
-
 
 if __name__ == "__main__":
     plotter()
