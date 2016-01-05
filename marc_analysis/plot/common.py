@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import xray
 
+from textwrap import wrap
+
 from .. convert import cyclic_dataarray
 
 
@@ -308,11 +310,31 @@ def set_title(ax, varname="", units="", l=None, r=None):
         ax.set_title(l, loc='right')
     return ax
 
-def set_labels(ax, xlabel=None, ylabel=None):
-    """ Add x- or y-axis labels to an axis instance. """
+def set_labels(ax, xlabel=None, ylabel=None, width=0):
+    """ Add x- or y-axis labels to an axis instance.
+
+    Parameters
+    ----------
+    ax : matplotlib.Axes instance
+        The axis to modify labels on
+    xlabel, ylabel : strings, optional
+        The labels to attach to the indicated axis
+    width : int
+        If a value > 0 is passed, then the label will be wrapped at the
+        indicated character width and spill over to a new line
+
+    Returns
+    -------
+    ax : reference to the axis passed to the function
+
+    """
     if xlabel is not None:
+        if width > 0:
+            xlabel = "\n".join(wrap(xlabel), width)
         ax.set_xlabel(xlabel)
     if ylabel is not None:
+        if width > 0:
+            ylabel = "\n".join(wrap(ylabel), width)
         ax.set_ylabel(ylabel)
     return ax
 
