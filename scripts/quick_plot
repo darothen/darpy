@@ -92,7 +92,7 @@ pass_cfg = click.make_pass_decorator(PlotConfig, ensure=True)
 def read_field_from_file(field, in_fn):
     """ Read a specific field from a netCDF file. """
     logger.debug("Reading '{}' from {}".format(field, in_fn))
-    data = xray.open_dataset(in_fn)[field]
+    data = xray.open_dataset(in_fn, decode_times=False)[field]
     print_dict(data.attrs, field)
     return data
 
