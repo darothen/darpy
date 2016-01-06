@@ -434,7 +434,7 @@ def colortext_legend(text_color_map, ax=None, text_labels=None, **kwargs):
     return leg
 
 def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
-                      center=None, robust=False, extend=None,
+                      center=None, robust=2.0, extend=None,
                       levels=None, filled=True, cnorm=None, **kwargs):
     """
     Use some heuristics to set good defaults for colorbar and range.
@@ -445,6 +445,10 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
     and xray:
     https://github.com/xray/xray/blob/master/xray/plot/plot.py#L253
 
+    However, note that the "robust" parameter is handled differently here;
+    instead of the typical behaior, it takes the percentile for the
+    *minimum* value (b/t 0 and 100), and uses 100-robust for the maximum.
+
     Parameters
     ----------
     plot_data : Numpy array or DataArray
@@ -454,9 +458,9 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
         Name of color map from matplotlib or seaborn
     center : float
         Value to fix at center of coloring scheme
-    robust : bool (default = False)
-        Infer maximum and minimum using a percentile estimate over all
-        the data
+    robust : float (default = 2.0)
+        Percentile to use for inferring robust colormap limits; overridden
+        by vmin/vmax
     levels : int or iterable of floats
         Either the number of levels to use or the values of all the
         level demarcations
@@ -468,7 +472,6 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
         Use depends on the type of the plotting function
 
     """
-    ROBUST_PERCENTILE = 2.0
     import matplotlib as mpl
 
     # Unpack DataArray -> numpy array
@@ -476,10 +479,13 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
         plot_data = plot_data.values
     calc_data = np.ravel(plot_data[~pd.isnull(plot_data)])
 
+    # Legacy handling for old boolean robust
+    if not robust:
+        robust = 0. # set to min/max
     if vmin is None:
-        vmin = np.percentile(calc_data, ROBUST_PERCENTILE) if robust else calc_data.min()
+        vmin = np.percentile(calc_data, robust)
     if vmax is None:
-        vmax = np.percentile(calc_data, 100 - ROBUST_PERCENTILE) if robust else calc_data.max()
+        vmax = np.percentile(calc_data, 100 - robust)
 
     # Simple heuristics for whether these data should  have a divergent map
     divergent = ((vmin < 0) and (vmax > 0)) or center is not None

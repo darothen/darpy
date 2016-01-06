@@ -105,11 +105,11 @@ def save_figure(fig, out_fn):
     _, fmt = os.path.splitext(out_fn)
     fmt = fmt[1:] # Strip off '.'
 
-    fig_dict = {'bbox_inches': 'tight'}
+    fig_dict = {'bbox_inches': 'tight', 'transparent': True, 'bbox_inches': 'tight'}
     if fmt == "png":
         fig_dict['dpi'] = 150
     elif fmt == "pdf":
-        fig_dict['transparent'] = True
+        pass
     else:
         raise ValueError("Output format should be either 'png'"
                          " or 'pdf', got {}".format(fmt))
@@ -224,8 +224,10 @@ def plotter(ctx, in_fn, field, cases, debug, out):
               help="Name of palette/colormap for plotting")
 @click.option("-m", "--method", type=str, default='contourf',
               help="matplotlib plotting method to use")
+@click.option("-r", "--robust", type=float, default=2.0,
+              help="Use robust colorbar limit detection; else, uses min/max")
 @pass_cfg
-def horiz(cfg, projection, lims, cmap, method):
+def horiz(cfg, projection, lims, cmap, method, robust):
     """
     \b
     Global horizontal plot of a <field> from the file <in.nc>. If
@@ -244,7 +246,7 @@ def horiz(cfg, projection, lims, cmap, method):
     darray = read_field_from_file(cfg.field, cfg.in_fn)
 
     # Get plot aesthetic details
-    cmap_kws = dict(levels=21, robust=True, extend='both')
+    cmap_kws = dict(levels=21, robust=robust, extend='both')
     if lims:
         cmap_kws['vmin'] = min(lims)
         cmap_kws['vmax'] = max(lims)
