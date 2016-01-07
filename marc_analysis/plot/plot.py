@@ -366,7 +366,7 @@ def region_plot(regions, ax=None, colors=None, only_regions=False,
 
         # Setup arguments for styling the box
         box_args = dict(facecolor='none', edgecolor='black',
-                        lw=2, alpha=0.5, label=region, zorder=10)
+                        lw=2, alpha=1.0, label=region, zorder=10)
         if colors is not None:
             color = colors[region]
             box_args['facecolor'] = color
