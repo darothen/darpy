@@ -66,7 +66,7 @@ class PlotConfig(object):
             dim, vals = case.split("=")
             vals = vals.split(",")
             logger.info("   {}) {} = {}".format(i, dim, vals))
-            case_dict[dim] = vals
+            case_dict[dim] = map(str, vals)
 
         return case_dict
 
@@ -243,7 +243,7 @@ def horiz(cfg, projection, lims, cmap, method, robust):
     logger.info("\nGLOBAL PLOT - HORIZONTAL")
 
     # Read in file
-    darray = read_field_from_file(cfg.field, cfg.in_fn)
+    darray = read_field_from_file(cfg.field, cfg.in_fn).squeeze()
 
     # Get plot aesthetic details
     cmap_kws = dict(levels=21, robust=robust, extend='both')
