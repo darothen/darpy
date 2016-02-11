@@ -66,6 +66,7 @@ def _write_version_file():
 _write_version_file()
 
 setup(name=NAME,
+      version=VERSION,
       license=LICENSE,
       author=AUTHOR, author_email=AUTHOR_EMAIL,
       classifiers=CLASSIFIERS,
