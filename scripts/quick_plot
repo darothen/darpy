@@ -366,7 +366,7 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
     # Plot each case
     logger.debug("\nCreating plot...")
     fig, axes = maplt.multipanel_figure(1, 1, size=4.)
-    ax = axes[0,0]
+    ax = axes[0, 0]
 
     # Process addtional kwargs
     kwargs = {}
@@ -380,7 +380,7 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
 
     colors = {}
     for i, case in enumerate(cases):
-        case_label = "_".join(case.values())
+        case_label = "_".join(map(str, case.values()))
         logger.debug("   {}) {}".format(i+1, case_label))
         d_case = darray.sel(**case).load()
 
