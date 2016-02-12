@@ -252,6 +252,8 @@ def horiz(cfg, projection, lims, cmap, method, robust):
         cmap_kws['vmax'] = max(lims)
     if cmap:
         cmap_kws['cmap'] = cmap
+    else:
+        cmap_kws['cmap'] = 'viridis'
     cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
     print_dict(cmap_kws, "Plot aesthetics")
 
