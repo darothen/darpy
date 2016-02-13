@@ -55,7 +55,7 @@ def _write_version_file():
     fn = os.path.join(os.path.dirname(__file__), 'marc_analysis', 'version.py')
 
     version_str = dedent("""
-        version = {}
+        version = '{}'
         """)
 
     # Write version file
