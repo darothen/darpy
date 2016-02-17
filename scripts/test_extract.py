@@ -3,7 +3,7 @@ from functools import partial
 
 from case_setup import *
 
-extract_variable = partial(extr_drv, 
+extract_variable = partial(extr_drv,
                            years_omit=3, re_extract=True,
                            act_cases=CASES_ACT,
                            aer_cases=CASES_AER )
@@ -17,18 +17,18 @@ if __name__ == "__main__":
                "attributes", "lev_bnds", "cdo_method", "ncap_str")
 
     proc_vars = [
-        ("CLDLOW", "CLDLOW", "annavg", 
+        ("CLDLOW", "CLDLOW", "annavg",
             {"long_name": "Mean annual low cloud (850-960 mb)"},
             None, ["timmean"], ),
         ("PRECL", "PRECL", "annavg",
             {"long_name": "Mean annual large-scale precipitation"},
-            None, ["timmean"], ), 
+            None, ["timmean"], ),
         ("AREL_LOW", "AREL", "annavg",
             {"long_name": "Mean annual low cloud (850-960 mb) average droplet effective radius"},
             (23, 27), ["timmean", "vertmean"], ),
         ("AREL_960", "AREL", "annavg",
             {"long_name": "Mean annual low cloud (960 mb) average droplet effective radius"},
-            (27, ), ["timmean",], ),  
+            (27, ), ["timmean",], ),
     ]
 
     for var in proc_vars:

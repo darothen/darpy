@@ -240,7 +240,7 @@ class Experiment(object):
 
     def load(self, var, fix_times=False,
              master=False, master_kwargs={}, **kwargs):
-        """ Load the data for a variable into xray Datasets and
+        """ Load the data for a variable into xarray Datasets and
         attach the variable and data to the current Experiment.
 
         """

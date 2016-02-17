@@ -10,8 +10,8 @@ try:
 except ImportError:
     warnings.warn("Unable to load geopandas/shapely; ocean shape mask"
                   " not available.")
-import xray
-from xray import DataArray, Dataset
+import xarray
+from xarray import DataArray, Dataset
 
 # from windspharm.standard import VectorWind
 # from windspharm.tools import prep_data, recover_data, order_latdim
@@ -25,16 +25,16 @@ def _get_masks():
 
     global _MASKS
 
-    if _MASKS is None: 
+    if _MASKS is None:
 
         try:
             _masks_fn = pkg_resources.resource_filename("marc_analysis",
                                                         "data/masks.nc")
-            
-            _MASKS = xray.open_dataset(_masks_fn, decode_cf=False,
+
+            _MASKS = xarray.open_dataset(_masks_fn, decode_cf=False,
                                        mask_and_scale=False,
                                        decode_times=False).squeeze()
-        except RuntimeError: # xray throws this if a file is not found
+        except RuntimeError: # xarray throws this if a file is not found
             warnings.warn("Unable to locate `masks` resource.")
 
     return _MASKS
@@ -69,7 +69,7 @@ def hybrid_to_pressure(ds, stride='m', P0=100000.):
 
     Parameters
     ----------
-    data : xray.Dataset
+    data : xarray.Dataset
         The dataset to inspect for computing vertical levels
     stride : str, either 'm' or 'i'
         Indicate if the field is on the model level interfaces or
@@ -246,7 +246,7 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
             new_coords[c] = data.coords[c]
         dims.append(c)
 
-    return xray.DataArray(data_new, coords=new_coords, dims=dims, )
+    return xarray.DataArray(data_new, coords=new_coords, dims=dims, )
 
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
@@ -418,7 +418,7 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
 #
 #     .. note::
 #         This is just a reference implementation to illustrate
-#         how to handle the interface between xray and windspharm.
+#         how to handle the interface between xarray and windspharm.
 #         Ideally this logic should be packaged separately and
 #         the analysis routines accessed directly from
 #         windspharm.
@@ -518,7 +518,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
         # on those elements.
         for v in data.data_vars:
             coords = data[v].coords
-            if not ('lon' in coords): 
+            if not ('lon' in coords):
                 new_data[v] = data[v]
             else:
                 new_data[v] = global_avg(data[v], weights)
@@ -596,7 +596,7 @@ def mask_ocean_points(dataset, oceans=None, pt_return=False,
         raise RuntimeError("Couldn't load default ocean shapefile")
 
     lons, lats = dataset[longitude], dataset[latitude]
-    if isinstance(dataset, (xray.Dataset, xray.DataArray)):
+    if isinstance(dataset, (xarray.Dataset, xarray.DataArray)):
         lons.values = shift_lons(lons.values)
     else:
         lons = shift_lons(lons)

@@ -18,9 +18,9 @@ simply be named "record." Globbing from the shell is supported.
 NOTES
 -----
 
-- Explicitly disable decoding "times" when loading in files using xray; this
-  is to try to help avoid weird errors where xray can't successfully load a
-  dataset with no true index coordinate (as of xray v0.6.1)
+- Explicitly disable decoding "times" when loading in files using xarray; this
+  is to try to help avoid weird errors where xarray can't successfully load a
+  dataset with no true index coordinate (as of xarray v0.6.1)
 
 """
 import logging
@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger()
 
 import pandas as pd
-import xray
+import xarray
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
 parser = ArgumentParser(description=__doc__,
@@ -79,12 +79,12 @@ if __name__ == "__main__":
     logger.debug("Loading files...")
     for fn in args.files:
         logger.debug("   " + fn)
-        ds = xray.open_dataset(fn, decode_times=False)
+        ds = xarray.open_dataset(fn, decode_times=False)
         all_ds.append(ds)
 
     # Concatenate
     logger.debug("Concatenating...")
-    concat_ds = xray.concat(all_ds, dim=new_dim)
+    concat_ds = xarray.concat(all_ds, dim=new_dim)
 
     # Save to disk
     out_kwargs = {}

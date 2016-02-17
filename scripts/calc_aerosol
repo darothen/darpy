@@ -13,9 +13,9 @@ import datetime
 import os
 import sys
 try:
-    import xray
+    import xarray
 except ImportError:
-    logger.critical("Need to install `xray` to run this script.")
+    logger.critical("Need to install `xarray` to run this script.")
     sys.exit()
 import numpy as np
 
@@ -113,11 +113,11 @@ if __name__ == "__main__":
     logger.debug("Input file: {}".format(args.in_fn))
     logger.debug("Output file: {}".format(args.out_fn))
 
-    # Load data file via xray
-    ds = xray.open_dataset(args.in_fn, decode_cf=False)
+    # Load data file via xarray
+    ds = xarray.open_dataset(args.in_fn, decode_cf=False)
 
     # Setup output Dataset
-    out_ds = xray.Dataset()
+    out_ds = xarray.Dataset()
     out_ds.attrs = copy.copy(ds.attrs)
     _append_history(out_ds)
 

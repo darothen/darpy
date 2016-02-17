@@ -11,7 +11,7 @@ logger = logging.getLogger()
 import inspect
 import os
 import sys
-import xray
+import xarray
 from itertools import product
 
 import matplotlib.pyplot as plt
@@ -92,7 +92,7 @@ pass_cfg = click.make_pass_decorator(PlotConfig, ensure=True)
 def read_field_from_file(field, in_fn):
     """ Read a specific field from a netCDF file. """
     logger.debug("Reading '{}' from {}".format(field, in_fn))
-    data = xray.open_dataset(in_fn, decode_times=False)[field]
+    data = xarray.open_dataset(in_fn, decode_times=False)[field]
     print_dict(data.attrs, field)
     return data
 
@@ -163,7 +163,7 @@ def plotter(ctx, in_fn, field, cases, debug, out):
     \b
     This script implements a crude scheme to select what subsets of data in a
     given file the user wants to plot, based on the dimensional selection
-    notation from xray. In general, this option must be explicitly passed
+    notation from xarray. In general, this option must be explicitly passed
     (following the examples below). The option '-c/--cases' implements this
     logic as follows:
 
@@ -174,13 +174,14 @@ def plotter(ctx, in_fn, field, cases, debug, out):
         quick_plot --cases dim1=val1 <in.nc> ...
 
     \b
-    this is equivalent to the xray call `ds.sel(dim1=val1)`. Additional values
-    of that same dimension can be supplied by separating them with a comma,
+    this is equivalent to the xarray call `ds.sel(dim1=val1)`. Additionall
+    values of that same dimension can be supplied by separating them with a
+    comma,
 
         quick_plot --cases dim1=val1,val2,... <in.nc> ...
 
     \b
-    which is equivalent to the xray call `ds.sel(dim1=[val1,val2,...]). This
+    which is equivalent to the xarray call `ds.sel(dim1=[val1,val2,...]). This
     sort of selection can be combined with as many different dimensions as one
     wants as long as they're separated by a blank space. So an example of a
     more complex selection might be:

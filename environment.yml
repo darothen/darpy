@@ -15,4 +15,4 @@ dependencies:
   - python=3.4
   - seaborn>=0.6
   - xlrd
-  - xray>=0.6
+  - xarray>=0.7

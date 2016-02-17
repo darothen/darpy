@@ -25,7 +25,7 @@ $ source activate marc_analysis
 
 - Python >= 3.4
 - [cartopy >= 0.12](http://scitools.org.uk/cartopy/docs/latest/) - visualization of maps and cartographic/geographic datasets
-- [xray >= 0.6](http://xray.readthedocs.org) - package for manipulating structured data like NetCDF
+- [xarray >= 0.7](http://xarray.pydata.org/en/stable/) - package for manipulating structured data like NetCDF
 - seaborn - wrapper for matplotlib with fantastic aesthetic configuration and multi-factor plot analyses/layouts
 - matplotlib
 - numpy
