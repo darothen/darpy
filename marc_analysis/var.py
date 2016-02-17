@@ -232,8 +232,8 @@ class Var(object):
     #     return self._load('iris', src_dir, act_cases, aer_cases,
     #                       fix_times, **kwargs)
 
-    def load_data(self, exp, method='xray', fix_times=False, **kwargs):
-        """ Load the data for this variable into xray DataSets and
+    def load_data(self, exp, method='xarray', fix_times=False, **kwargs):
+        """ Load the data for this variable into xarray DataSets and
         attach them to the current instance.
 
         Parameters
@@ -242,7 +242,7 @@ class Var(object):
             The container object detailing the experiment that
             produced this variable
         method : str
-            String indicated to load `xray` or `iris` data structures
+            String indicated to load `xarray` or `iris` data structures
         fix_times : bool
             Attempt to decode and replace timestamps in dataset
             with better values given the bounds attached to them.

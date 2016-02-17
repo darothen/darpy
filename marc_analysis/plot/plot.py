@@ -133,7 +133,7 @@ def geo_plot(darray, ax=None, method='contourf',
 
     Parameters:
     -----------
-    darray : xray.DataArray
+    darray : xarray.DataArray
         The darray to be plotted.
     ax : axis
         An existing axis instance, else one will be created.
@@ -218,7 +218,7 @@ def vertical_plot(darray, ax=None, method='contourf', top=100., log_vert=False,
 
     Parameters
     ----------
-    darray : xray.Dataset or xray.DataArray
+    darray : xarray.Dataset or xarray.DataArray
         The data to be plotted.
     ax : axis
         An existing axis instance, else one will be created.
@@ -406,8 +406,8 @@ def plot2d(darray, x=None, y=None, ax=None,
 
     Parameters
     ----------
-    darray : xray.DataArray
-        A 2D xray.DataArray with the field to plot.
+    darray : xarray.DataArray
+        A 2D xarray.DataArray with the field to plot.
     x : string, optional
         Coordinate for x-axis; else will infer
     y : string, optional

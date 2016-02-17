@@ -5,7 +5,7 @@ and analyzing results.
 
 import matplotlib.pyplot as plt
 import numpy as np
-from xray import Dataset
+from xarray import Dataset
 
 from IPython.html import widgets
 from IPython.display import clear_output, display

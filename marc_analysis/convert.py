@@ -9,7 +9,7 @@ except ImportError:
     warnings.warn("cartopy not found!")
 
 from numpy import empty, nditer
-from xray import DataArray, Dataset
+from xarray import DataArray, Dataset
 
 __all__ = [ 'cyclic_dataarray', 'create_master', 'dataset_to_cube', ]
 
@@ -17,7 +17,7 @@ def cyclic_dataarray(da, coord='lon'):
     """ Add a cyclic coordinate point to a DataArray along a specified
     named coordinate dimension.
 
-    >>> from xray import DataArray
+    >>> from xarray import DataArray
     >>> data = DataArray([[1, 2, 3], [4, 5, 6]],
     ...                      coords={'x': [1, 2], 'y': range(3)},
     ...                      dims=['x', 'y'])
@@ -67,7 +67,7 @@ def create_master(exp, var, new_fields=["PS", ]):
 
     Returns:
     --------
-    master : xray.DataSet
+    master : xarray.DataSet
         A DataSet combining all the sepearate cases into a single
         master, with the case information as auxiliary coordinates.
 
@@ -95,7 +95,7 @@ def create_master(exp, var, new_fields=["PS", ]):
         assert case_bits in data_dict
 
     # Discover the type of the data passed into this method. If
-    # it's an xray type, we'll preserve that. If it's an iris type,
+    # it's an xarray type, we'll preserve that. If it's an iris type,
     # then we need to crash for now.
     first_case = next(exp.all_cases())
 
@@ -107,7 +107,7 @@ def create_master(exp, var, new_fields=["PS", ]):
     # elif isinstance(proto, Cube):
     #     raise NotImplementedError("Cube handling not yet implemented")
     else:
-        raise ValueError("Data must be an xray or iris type")
+        raise ValueError("Data must be an xarray or iris type")
 
 def _master_dataarray(exp, data_dict):
 
@@ -203,7 +203,7 @@ def _master_dataset(exp, data_dict, new_fields):
 
 def dataset_to_cube(ds, field):
     """ Construct an iris Cube from a field of a given
-    xray DataSet. """
+    xarray DataSet. """
 
     raise NotImplementedError("`iris` deprecated for Python 3")
 
@@ -295,7 +295,7 @@ def _get_dataset_attr(ds, attr_key):
 
 def _get_dataset_names(ds, field):
     """ If possible, return the standard, long, and var names for a
-    given selection from an xray DataSet. """
+    given selection from an xarray DataSet. """
 
     dsf = ds[field]
 

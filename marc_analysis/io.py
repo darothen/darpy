@@ -1,7 +1,7 @@
 
 from glob import glob
 import numpy as np
-import xray
+import xarray
 
 import logging
 logger = logging.getLogger()
@@ -15,8 +15,8 @@ def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
     given dimension. Useful for loading a portion of a large dataset into
     memory directly, even when that dataset spans many different files.
 
-    This is based on the idiom provided in the xray documentation at
-    http://xray.readthedocs.org/en/stable/io.html
+    This is based on the idiom provided in the xarray documentation at
+    http://xarray.readthedocs.org/en/stable/io.html
 
     Parameters
     ----------
@@ -32,7 +32,7 @@ def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
 
     Returns
     -------
-    An xray.Dataset with the transformed, subsetted data from the
+    An xarray.Dataset with the transformed, subsetted data from the
     requested files.
 
     """
@@ -42,7 +42,7 @@ def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
         logger.debug("load_netcdfs: opening {}".format(path))
 
         # use a context manager, to ensure the file gets closed after use
-        with xray.open_dataset(path, **open_kws) as ds:
+        with xarray.open_dataset(path, **open_kws) as ds:
             # transform_func should do some sort of selection or
             # aggregation
             if transform_func is not None:
@@ -56,15 +56,15 @@ def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
     logger.debug("load_netcdfs: found {} paths".format(len(paths)))
 
     datasets = [process_file(p) for p in paths]
-    combined = xray.concat(datasets, dim)
+    combined = xarray.concat(datasets, dim)
 
     return combined
 
 
 def load_variable(var_name, path_to_file,
-                  method='xray', fix_times=True, extr_kwargs={}):
+                  method='xarray', fix_times=True, extr_kwargs={}):
     """ Interface for loading an extracted variable into memory, using
-    either iris or xray. If `path_to_file` is instead a raw dataset,
+    either iris or xarray. If `path_to_file` is instead a raw dataset,
     then the entire contents of the file will be loaded!
 
     Parameters
@@ -74,7 +74,7 @@ def load_variable(var_name, path_to_file,
     path_to_file : string
         Location of file containing variable
     method : string
-        Choose between 'iris' or 'xray'
+        Choose between 'iris' or 'xarray'
     fix_times : bool
         Correct the timestamps to the middle of the bounds
         in the variable metadata (CESM puts them at the right
@@ -112,9 +112,9 @@ def load_variable(var_name, path_to_file,
         #
         # return c
 
-    elif method == "xray":
+    elif method == "xarray":
 
-        ds = xray.open_dataset(path_to_file, decode_cf=False, **extr_kwargs)
+        ds = xarray.open_dataset(path_to_file, decode_cf=False, **extr_kwargs)
 
         # Fix time unit, if necessary
         interval, timestamp = ds.time.units.split(" since ")
@@ -137,6 +137,6 @@ def load_variable(var_name, path_to_file,
             ds.time.values = mean_times
 
         # Lazy decode CF
-        ds = xray.decode_cf(ds)
+        ds = xarray.decode_cf(ds)
 
         return ds

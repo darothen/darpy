@@ -11,7 +11,7 @@ from seaborn.apionly import color_palette
 
 import numpy as np
 import pandas as pd
-import xray
+import xarray
 
 from textwrap import wrap
 
@@ -442,8 +442,8 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
     Adapted from Seaborn:
     https://github.com/mwaskom/seaborn/blob/v0.6/seaborn/matrix.py#L158
 
-    and xray:
-    https://github.com/xray/xray/blob/master/xray/plot/plot.py#L253
+    and xarray:
+    https://github.com/xarray/xarray/blob/master/xarray/plot/plot.py#L253
 
     However, note that the "robust" parameter is handled differently here;
     instead of the typical behaior, it takes the percentile for the
@@ -475,7 +475,7 @@ def infer_cmap_params(plot_data, vmin=None, vmax=None, cmap=None,
     import matplotlib as mpl
 
     # Unpack DataArray -> numpy array
-    if isinstance(plot_data, xray.DataArray):
+    if isinstance(plot_data, xarray.DataArray):
         plot_data = plot_data.values
     calc_data = np.ravel(plot_data[~pd.isnull(plot_data)])
 

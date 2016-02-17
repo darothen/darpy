@@ -9,7 +9,7 @@ from functools import wraps
 from subprocess import call, check_output
 
 import numpy as np
-from xray import DataArray, Dataset
+from xarray import DataArray, Dataset
 
 ## DATA REFERENCE
 mode_colors = {
@@ -49,7 +49,7 @@ def append_history(ds, call_str=None, extra_info=None):
 
     Parameters
     ----------
-    ds : xray.Dataset
+    ds : xarray.Dataset
         The Dataset to append history information to
     call_str : str, optional
         The full calling path of the operation - including the script
@@ -277,7 +277,7 @@ def area_grid(lon, lat, asarray=False):
 
     Returns
     -------
-    areas : xray.DataArray or array
+    areas : xarray.DataArray or array
         Array with shape (len(lon), len(lats)) containing the
         area (in m^2) of each cell on the grid.
 
