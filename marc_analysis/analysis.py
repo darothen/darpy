@@ -574,10 +574,10 @@ def extract_feature(ds, feature='ocean'):
         raise ValueError("Expected one of [%s] as feature; got '%s'"
                             % (feature_key_str, feature))
 
-        if _MASKS is None:
-            _get_masks()
-        if _MASKS is None: # still?!?!? Must be broken/unavailable
-            raise RuntimeError("Couldn't load masks resource")
+    if _MASKS is None:
+        _get_masks()
+    if _MASKS is None: # still?!?!? Must be broken/unavailable
+        raise RuntimeError("Couldn't load masks resource")
 
     mask = (_MASKS['ORO'] == _FEATURE_MAP[feature])
     return ds.where(mask)
