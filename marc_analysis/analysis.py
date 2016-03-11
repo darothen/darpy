@@ -500,7 +500,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
     if isinstance(data, DataArray):
 
         # If there are NaNs, then use individual weights
-        is_nan = data.notnull()
+        is_nan = data.isnull()
         if is_nan.any():
             total_weights = weights.where(is_nan).sum(dims)
         else:
