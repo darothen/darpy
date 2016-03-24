@@ -165,7 +165,6 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
     # Shape of array at any given level
     flat_shape = pres_levs.isel(lev=0).shape
 
-
     # Loop over the interpolant levels
     for ilev in range(n_interp):
 
@@ -229,6 +228,8 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
     data = data.squeeze()
     pres_levs = pres_levs.squeeze()
 
+    new_pres_levs = np.asarray(new_pres_levs)
+
     if method == "scipy":
         data_new = _interp_scipy(data, pres_levs, new_pres_levs)
     elif method == "numpy":
@@ -236,8 +237,10 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
     else:
         raise ValueError("Don't know method '%s'" % method)
 
-    # Create new DataArray based on interpolated data
-    new_coords = {'lev': new_pres_levs}
+    # Create new DataArray based on interpolated data, noting that the interpolated
+    # levels are by default going to be the first dimension. They're also off by a
+    # factor of 100 from the interpolation
+    new_coords = {'lev': new_pres_levs/100.}
     dims = ['lev', ]
     for c in data.dims:
         if c == 'lev':
@@ -245,7 +248,12 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
         new_coords[c] = data.coords[c]
         dims.append(c)
 
-    return xarray.DataArray(data_new, coords=new_coords, dims=dims)
+    data_new = xarray.DataArray(data_new, coords=new_coords, dims=dims)
+
+    # Re-order to match dimension shape of original dataset
+    data_new = shuffle_dims(data_new, data.dims)
+
+    return data_new
 
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
