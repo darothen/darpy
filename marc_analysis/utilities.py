@@ -315,7 +315,7 @@ def area_grid(lon, lat, asarray=False):
                 areas[lon_i, lat_i] = (R_EARTH**2.) \
                                      *np.abs( np.cos(lat1) - np.cos(lat2) )*dlon
 
-    # areas = areas.T # re-order (lat, lon)
+    areas = areas.T # re-order (lat, lon)
 
     if asarray:
         return areas

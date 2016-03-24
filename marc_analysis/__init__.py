@@ -17,6 +17,7 @@ from . io import *
 from . var import *
 from . convert import *
 from . utilities import *
+from . analysis import *
 
 try:
     from . plot import *

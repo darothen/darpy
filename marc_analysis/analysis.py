@@ -220,7 +220,7 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
 
 mandatory_levs = 100.*np.array([250., 300., 500., 700., 850., 925., 1000.])
 def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
-                          method="scipy"):
+                          method="numpy"):
     """ Interpolate the vertical coordinaet of a given dataset to the
     requested pressure levels.
 
@@ -237,16 +237,15 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
         raise ValueError("Don't know method '%s'" % method)
 
     # Create new DataArray based on interpolated data
-    new_coords = {}
-    dims = []
+    new_coords = {'lev': new_pres_levs}
+    dims = ['lev', ]
     for c in data.dims:
         if c == 'lev':
-            new_coords[c] = new_pres_levs
-        else:
-            new_coords[c] = data.coords[c]
+            continue
+        new_coords[c] = data.coords[c]
         dims.append(c)
 
-    return xarray.DataArray(data_new, coords=new_coords, dims=dims, )
+    return xarray.DataArray(data_new, coords=new_coords, dims=dims)
 
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
