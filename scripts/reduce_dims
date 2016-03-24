@@ -1,0 +1,93 @@
+#!/usr/bin/env python
+""" Reduce dimensions in a netCDF file.
+
+"""
+import os
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger()
+
+import sys
+import marc_analysis as ma
+import xarray as xr
+
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+parser = ArgumentParser(description=__doc__,
+                        formatter_class=RawDescriptionHelpFormatter)
+parser.add_argument("-d", "--debug", action="store_true",
+                    help="Log extra debugging information.")
+parser.add_argument("-O", "--overwrite", action="store_true",
+                    help="Overwrite existing output file, if any")
+parser.add_argument("--classic", action="store_true",
+                    help="Save output file in NETCDF3-compliant format;"
+                         " useful for interoperability with NCO.")
+parser.add_argument("--dims", metavar="--dims <dim>=<method",
+                    type=str, nargs="+",
+                    help="Mapping of dimensions->methods for reduction")
+parser.add_argument("in_fn", type=str, metavar="in.nc",
+                    help="Input file name")
+parser.add_argument("out_fn", type=str, metavar="out.nc",
+                    help="Output file name")
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
+
+    # Load the input file and select the requested cases
+    data = xr.open_dataset(args.in_fn, decode_cf=False, decode_times=False)
+
+    # TODO: Dimension encoding
+    encoding = {}
+    # for dim, vals in case_dict.items():
+    #     print(dim, vals)
+    #     logger.debug("Selecting {}".format(dim))
+    #     logger.debug("Available: {}".format(data[dim].values))
+    #     logger.debug("Requested: {}".format(vals))
+    #     data = data.sel(**{dim: vals})
+    #     encoding[dim] = {'dtype': type(vals[0])}
+    #     logger.debug("Encoding {} as {}".format(dim, encoding[dim]))
+
+    # Apply dimension reductions
+    logger.debug("Processing reduction dimensions")
+    for i, dim_arg in enumerate(args.dims, 1):
+        try:
+            dim, method = dim_arg.split("=")
+        except ValueError:
+            raise RuntimeError("Couldn't process dimension argument {}".format(dim_arg))
+        logger.debug("   {:d}) {} -> {}".format(i, dim, method))
+
+        # Look up method name
+        try:
+            method = xr.Dataset.__dict__[method]
+        except KeyError:
+            raise RuntimeError("Reduction method '{}' isn't known to xarray"
+                               .format(method))
+        data = method(data, dim, keep_attrs=True)
+
+    # Append history
+    call_str = __file__ + " " + " ".join(sys.argv[1:])
+    data = ma.append_history(data, call_str)
+
+    # Save output file
+    logger.debug("Writing output to {}".format(args.out_fn))
+
+    # File overwrite check
+    if os.path.exists(args.out_fn) and (not args.overwrite):
+        while True:
+            m = input("File '{}' exists; (o)verwrite or attempt to (a)ppend? "
+                      .format(args.out_fn))
+            if m in ['o', 'a']:
+                break
+        if m == "o":
+            m = 'w'  # convert to 'to_netcdf()' mode flag
+    else:
+        m = 'w'
+    writer_kws = dict(mode=m, encoding=encoding)#, engine='scipy')
+
+    if args.classic:
+        writer_kws['format'] = 'NETCDF3_CLASSIC'
+        logger.debug("   Saving classic format")
+    data.to_netcdf(args.out_fn, **writer_kws)
