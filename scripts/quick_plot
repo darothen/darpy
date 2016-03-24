@@ -217,6 +217,100 @@ def plotter(ctx, in_fn, field, cases, debug, out):
 
 
 @plotter.command()
+@click.option("-l", "--lims", nargs=2, type=float,
+              help="Colorbar low/high limit")
+@click.option("-t", "--top", type=float, default=100.,
+              help="Top pressure level to plot.")
+@click.option("--log-vert", is_flag=True,
+              help="Plot with logarithm of vertical coordinate")
+@click.option("--cmap", type=str,
+              help="Name of palette/colormap for plotting")
+@click.option("-m", "--method", type=str, default='contourf',
+              help="matplotlib plotting method to use")
+@click.option("-r", "--robust", type=float, default=2.0,
+              help="Use robust colorbar limit detection; else, uses min/max")
+@pass_cfg
+def zonalvert(cfg, lims, top, log_vert, cmap, method, robust):
+    """
+    \b
+    Vertical-zonalplot of a <field> from the finel <in.nc>. If pass as an
+    argument, will save the resulting plot in [plot_filename]
+
+    \b
+    If '--levels' isn't passed, will automatically infer reasonable
+    colorbar limits. Else, must pass the low and high thresholds
+    for constructing the colorbar (vmin/vmax). Additionally, only a single
+    case will be plotted per run of this tool.
+
+    \b
+    Preferably, only pass <in.nc> files which already have had time/zonal means
+    computed - although you might be able to select several cases to choose
+    the slices you want.
+
+    """
+    logger.info("\nZONAL-VERTICAL PLOT")
+
+    # Read in file
+    darray = read_field_from_file(cfg.field, cfg.in_fn).squeeze()
+
+    # Get plot aesthetic details
+    cmap_kws = dict(levels=21, robust=robust, extend='both')
+    if lims:
+        cmap_kws['vmin'] = min(lims)
+        cmap_kws['vmax'] = max(lims)
+    if cmap:
+        cmap_kws['cmap'] = cmap
+    else:
+        cmap_kws['cmap'] = 'viridis'
+    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+    print_dict(cmap_kws, "Plot aesthetics")
+
+    # Iterate over the selected cases
+    logger.debug("\nselecting case...")
+    if cfg.cases:
+        case = next(cfg.itercases())
+        logger.debug("case: {}".format(case))
+        d_case = darray.sel(**case).load()
+        title_str = " ".join(["{}={}".format(dim, val)
+                              for dim, val in case.items()])
+    else:
+        logger.debug("case: No specific cases requested")
+        d_case = darray.load()
+        title_str = ""
+
+    # Actual plot logic
+    logger.debug("\nCreating plot...")
+    try:
+        ax, gp = maplt.vertical_plot(d_case, method=method, top=top,
+                                     log_vert=log_vert, **cmap_kws)
+    except:
+        # The plotting method doesn't like all the cmap_kws, so just use
+        # vmin/vmax and cmap
+        ax, gp = maplt.vertical_plot(d_case, method=method, top=top,
+                                     log_vert=log_vert,
+                                     vmin=cmap_kws['vmin'], vmax=cmap_kws['vmax'],
+                                     cmap=cmap_kws['cmap'])
+
+    fig = ax.get_figure()
+    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+                            pad=0.02, shrink=0.0)
+    try:
+        cb.set_label("[{}]".format(d_case.units), labelpad=10,
+                     rotation=270)
+        plt.draw()
+    except:
+        logger.debug("no units found for labelling colorbar")
+        pass
+    ax.set_title(title_str, loc='right')
+    ax.set_title(cfg.field, loc='left')
+
+    # Output handling
+    if cfg.show:
+        plt.show(block=True)
+    else:
+        save_figure(fig, cfg.out_fn)
+
+@plotter.command()
 @click.option("-p", "--projection", default="PlateCarree",
               help="Map projection; defaults to PlateCarree")
 @click.option("-l", "--lims", nargs=2, type=float,
