@@ -27,6 +27,8 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger()
 
+import sys
+import marc_analysis as ma
 import pandas as pd
 import xarray
 
@@ -86,6 +88,10 @@ if __name__ == "__main__":
     logger.debug("Concatenating...")
     concat_ds = xarray.concat([ds.T for ds in all_ds], dim=new_dim)
     concat_ds = concat_ds.T
+
+    # Append history
+    call_str = " ".join(sys.argv[1:])
+    concat_ds = ma.append_history(concat_ds, call_str)
 
     # Save to disk
     out_kwargs = {}
