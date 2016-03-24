@@ -90,7 +90,7 @@ if __name__ == "__main__":
     concat_ds = concat_ds.T
 
     # Append history
-    call_str = " ".join(sys.argv[1:])
+    call_str = __file__ + " " + " ".join(sys.argv[1:])
     concat_ds = ma.append_history(concat_ds, call_str)
 
     # Save to disk
