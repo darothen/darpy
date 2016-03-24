@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+""" Interpolate 3D CESM output to specified vertical pressure levels.
+
+NOTES
+-----
+
+- The dataset to be interpolated needs to have a few fields in it so that the
+  true 3D pressure field can be reproduced, specifically hyam, hybm, PS, and P0.
+
+"""
+import logging
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger()
+
+import os
+import sys
+import marc_analysis as ma
+import numpy as np
+import pandas as pd
+import xarray as xr
+
+from argparse import ArgumentParser, RawDescriptionHelpFormatter
+parser = ArgumentParser(description=__doc__,
+                        formatter_class=RawDescriptionHelpFormatter)
+parser.add_argument("in_fn", metavar="in.nc", type=str,
+                    help="Name of input file")
+parser.add_argument("out_fn", metavar="out.nc", type=str,
+                    help="Name of output file")
+parser.add_argument("--levels", nargs="+", type=float, required=True,
+               help="Interpolation levels in hPa.")
+parser.add_argument("--fields", nargs="+", type=str,
+                    help="3D fields to interpolate; if not included, will interpolate"
+                         " all available 3D fields.")
+parser.add_argument("--classic", action="store_true",
+                    help="Save in netCDF3 classic format")
+parser.add_argument("--debug", action='store_true',
+                    help="Enable debug logging")
+parser.add_argument("-O", "--overwrite", action="store_true",
+                    help="Overwrite existing output file, if any")
+
+MANDATORY_FIELDS = set(["PS", ])
+
+if __name__ == "__main__":
+
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+        logger.debug("Debug logging enabled")
+
+    # Load in the dataset
+    logger.debug("Reading {}".format(args.in_fn))
+    ds = xr.open_dataset(args.in_fn, decode_times=False, decode_cf=False)
+
+    # Look up fields to process
+    fields_to_process = []
+    if not args.fields:
+        logger.debug("Reading all fields to find interpolants...")
+        for v in ds.data_vars:
+            if "lev" in ds[v].dims:
+                fields_to_process.append(v)
+                MANDATORY_FIELDS.add("hyam")
+                MANDATORY_FIELDS.add("hybm")
+            if "ilev" in ds[v].dims:
+                fields_to_process.append(v)
+                MANDATORY_FIELDS.add("hyai")
+                MANDATORY_FIELDS.add("hybi")
+    else:
+        fields_to_process = fields
+
+    # Sanity checks -
+    # 1) Necessary fields are included in the dataset
+    for field in MANDATORY_FIELDS:
+        if not field in ds.data_vars:
+            raise ValueError("Required field {} wasn't found in dataset {}"
+                             .format(field, args.in_fn))
+
+    # Compute 3D pressure fields on middles/interfaces if necessary
+    logger.debug("Computing 3D pressure field")
+    P0 = ds['P0'] if "P0" in ds.data_vars else 100000.
+    if "hyam" in MANDATORY_FIELDS:
+        pressure_field_m = ma.hybrid_to_pressure(ds, 'm', P0)
+    if "hyai" in MANDATORY_FIELDS:
+        pressure_field_i = ma.hybrid_to_pressure(ds, 'i', P0)
+
+    interp_levels = 100.*np.array(args.levels)
+
+    # Perform interpolation on variables
+    interp_das = {}
+    logger.debug("Interpolating...")
+    for field in fields_to_process:
+        if field in MANDATORY_FIELDS:
+            continue
+        logger.debug("    " + field)
+        lev_name = "lev" if "lev" in ds[field].dims else "ilev"
+        pres_levs = pressure_field_m if lev_name=="lev" else pressure_field_i
+        interped_field = ma.interp_to_pres_levels(ds[field], pres_levs,
+                                                  interp_levels, "numpy")
+        ma.copy_attrs(ds[field], interped_field)
+        interp_das[field] = interped_field
+
+    # Combine into new DataSet
+    logger.debug("Combining...")
+    new_ds = xr.Dataset(interp_das, attrs=ds.attrs)
+
+    # Append history to new dataset
+
+    # Correct CF-compliant vertical dimensions
+    if "ilev" in new_ds.dims:
+        new_ds['ilev'].attrs['standard_name'] = "pressure"
+        new_ds['ilev'].attrs['units'] = 'hPa'
+    if "lev" in new_ds.dims:
+        new_ds['lev'].attrs['standard_name'] = "pressure"
+        new_ds['lev'].attrs['units'] = 'hPa'
+
+    # Append history
+    call_str = " ".join(sys.argv[1:])
+    new_ds = ma.append_history(new_ds, call_str)
+
+    # Save output file
+    logger.debug("Writing output to {}".format(args.out_fn))
+
+    # File overwritten check
+    if os.path.exists(args.out_fn) and (not args.overwrite):
+        while True:
+            m = input("File '{}' exists; (o)verwrite or attempt to (a)ppend? "
+                      .format(args.out_fn))
+            if m in ['o', 'a']:
+                break
+        if m == "o":
+            m = 'w'  # convert to 'to_netcdf()' mode flag
+    else:
+        m = 'w'
+    writer_kws = dict(mode=m)
+
+    if args.classic:
+        writer_kws['format'] = 'NETCDF3_CLASSIC'
+        logger.debug("   Saving classic format")
+
+    new_ds.to_netcdf(args.out_fn, **writer_kws)
