@@ -84,7 +84,8 @@ if __name__ == "__main__":
 
     # Concatenate
     logger.debug("Concatenating...")
-    concat_ds = xarray.concat(all_ds, dim=new_dim)
+    concat_ds = xarray.concat([ds.T for ds in all_ds], dim=new_dim)
+    concat_ds = concat_ds.T
 
     # Save to disk
     out_kwargs = {}
@@ -92,4 +93,3 @@ if __name__ == "__main__":
         out_kwargs['format'] = "NETCDF3_CLASSIC"
     logger.debug("Saving to {}".format(args.out_fn))
     concat_ds.to_netcdf(args.out_fn, **out_kwargs)
-
