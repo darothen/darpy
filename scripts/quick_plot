@@ -321,8 +321,10 @@ def zonalvert(cfg, lims, top, log_vert, cmap, method, robust):
               help="matplotlib plotting method to use")
 @click.option("-r", "--robust", type=float, default=2.0,
               help="Use robust colorbar limit detection; else, uses min/max")
+@click.option("--colorbar/--no-colorbar", default=True,
+              help="Enable/suppress colorbar (default is enabled)")
 @pass_cfg
-def horiz(cfg, projection, lims, cmap, method, robust):
+def horiz(cfg, projection, lims, cmap, method, robust, colorbar):
     """
     \b
     Global horizontal plot of a <field> from the file <in.nc>. If
@@ -378,15 +380,17 @@ def horiz(cfg, projection, lims, cmap, method, robust):
                                 cmap=cmap_kws['cmap'])
 
     fig = ax.get_figure()
-    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
-                            pad=0.02, shrink=0.15)
-    try:
-        cb.set_label("[{}]".format(d_case.units), labelpad=10,
-                     rotation=270)
-        plt.draw()
-    except:
-        logger.debug("no units found for labelling colorbar")
-        pass
+    if colorbar:
+        logger.debug("\nDrawing colorbar...")
+        cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+                                pad=0.02, shrink=0.15)
+        try:
+            cb.set_label("[{}]".format(d_case.units), labelpad=10,
+                         rotation=270)
+            plt.draw()
+        except:
+            logger.debug("no units found for labelling colorbar")
+            pass
     ax.set_title(title_str, loc='right')
     ax.set_title(cfg.field, loc='left')
 
