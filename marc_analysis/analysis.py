@@ -116,6 +116,10 @@ def extract_cloud_top(data, cloud_data, cloud_thresh,
     cloud_data = shuffle_dims(cloud_data, vert_dim)
     new_shape = data.shape
 
+    # Get length of vertical dimension if necessary
+    if nlev is None:
+        nlev = len(new_shape[0])
+
     if method == "numpy":
         # Find the vertical axis for searching
         axis = data.dims.index(vert_dim)
