@@ -16,10 +16,13 @@ from xarray import DataArray, Dataset
 # from windspharm.standard import VectorWind
 # from windspharm.tools import prep_data, recover_data, order_latdim
 
-from . utilities import ( copy_attrs, preserve_attrs, area_grid,
-                         shuffle_dims, shift_lons )
+from . utilities import (copy_attrs, preserve_attrs, area_grid,
+                         shuffle_dims, shift_lons)
 
-_MASKS  = None
+_MASKS = None
+_OCEAN_SHAPE = None
+
+
 def _get_masks():
     """ Load the orography masks dataset. """
 
@@ -32,15 +35,14 @@ def _get_masks():
                                                         "data/masks.nc")
 
             _MASKS = xarray.open_dataset(_masks_fn, decode_cf=False,
-                                       mask_and_scale=False,
-                                       decode_times=False).squeeze()
-        except RuntimeError: # xarray throws this if a file is not found
+                                         mask_and_scale=False,
+                                         decode_times=False).squeeze()
+        except RuntimeError:  # xarray throws this if a file is not found
             warnings.warn("Unable to locate `masks` resource.")
 
     return _MASKS
 
 
-_OCEAN_SHAPE = None
 def _get_ocean_shapefile():
     """ Load the ocean basins shapefile. """
 
@@ -61,7 +63,143 @@ def _get_ocean_shapefile():
     return _OCEAN_SHAPE
 
 ################################################################
-## DATASET MANIPULATION FUNCTIONS
+# DATASET MANIPULATION FUNCTIONS
+
+
+def extract_cloud_top(data, cloud_data, cloud_thresh,
+                      vert_dim='lev', nlev=None,
+                      method='numpy', return_indices=False):
+    """ Extract at-cloud-top values for a given DataArray, according to a
+    corresponding DataArray for approximating where cloud top is occurring.
+
+    In MARC/CESM, the microphysics defines "cloud top" as the vertical grid level
+    where the lquid stratus cloud fraction in the grid box > 0.01, and where the
+    in-cloud water mixing ratio in stratus > 1e-7. For simplicity, we can take the
+    first of these two criterion by analyzing the 3D "FREQL" field in the model
+    output. As an example:
+
+    >>> ds = xarray.open_dataset(<PATH_TO_OUTPUT_FILE>)
+    >>> T_at_cloud_top = extract_cloud_top(ds['T'],
+    ...                                    cloud_data=ds['FREQL'],
+    ...                                    cloud_thresh=0.01)
+    <xarray.DataArray 'T' (time: 8, lat: 96, lon: 144)> ...
+
+    `data` and `cloud_data` should have *identical* dimensions
+
+    Parameters
+    ----------
+    data, cloud_data : xarray.DataArray
+        The DataArrays containing the data to be extracted at cloud top and for
+        identifying cloud top, respectively.
+    cloud_thresh : float
+        A threshold for indicating what consitutes "cloud" levels in `cloud_data`
+    vert_dim : str
+        Name of vertical dimension; defaults to 'lev'
+    nlev : int
+        Maximum number of levels deep into the atmosphere to consider (defaults
+        to inspecting entire column)
+    method : str (default: 'numpy')
+        Either 'numpy' to use fast-array logic or 'column' to iterate over each
+        column
+    return_indices : boolean (default: False)
+        Return the vertical indices where cloud top is located instead of the
+        actual values from `data`
+
+    Returns
+    -------
+    xarray.DataArray similar to `data`, but with the vertical dimension reduced
+    to just the data at cloud top.
+
+    """
+    orig_shape = data.shape
+    data = shuffle_dims(data, vert_dim)
+    cloud_data = shuffle_dims(cloud_data, vert_dim)
+    new_shape = data.shape
+
+    if method == "numpy":
+        # Find the vertical axis for searching
+        axis = data.dims.index(vert_dim)
+        nlevs = new_shape[axis]
+
+        # Default new data to sfc (lowest model lev)
+        data_new = np.ones(cloud_data.shape[1:])*np.nan
+
+        # Shape of array at any given level
+        flat_shape = cloud_data.isel(**{vert_dim: 0}).shape
+
+        # Loop over the interpolant levels
+        mask = np.zeros(flat_shape, dtype=bool)
+        for ilev in range(nlevs):
+            if ilev > nlev:
+                break
+
+            # print(ilev, end=" ")
+            # At each level, we see if we've encountered cloud top (cloud_field > cloud_thresh)
+            # in each column. If we have, then record the value there from the data field, and
+            # add this column to the mask.
+            cloud_at_lev = (cloud_data.isel(**{vert_dim: ilev}) > cloud_thresh).data
+
+            if return_indices:
+                data_new[cloud_at_lev & ~mask] = ilev
+            else:
+                data_level = data[ilev].data
+                data_new[cloud_at_lev & ~mask] = data_level[cloud_at_lev & ~mask]
+
+            # Update mask to indicate the newly processed columns
+            mask = mask | cloud_at_lev
+            # print(mask.sum())
+
+    elif method == "columns":
+        # Unravel all the columns
+        ncols = int(np.product(new_shape[1:]))
+        nlevs = np.product(new_shape)//ncols
+        data_new = np.ones((ncols, ))*np.nan
+        data_by_col = np.reshape(data.data, (nlevs, ncols))
+
+        # Iterate over all the columns, applying the simple seeking
+        # algorithm
+        count = 0
+        for col in range(ncols):
+            for ilev in range(nlevs):
+                if ilev > nlev:
+                    break
+
+                if data_by_col[ilev, col] > cloud_thresh:
+                    if return_indices:
+                        data_new[col] = ilev
+                    else:
+                        data_new[col] = data_by_col[ilev, col]
+                    count += 1
+                    break
+            else:
+                data_new[col] = 0.
+        # print("Mapped {:d} columns".format(count))
+
+        # Re-shape the data back to match the shuffled original data
+        data_new = np.reshape(data_new, data.shape[1:])
+    else:
+        raise ValueError("Don't know how to analyze with method '{}'".format(method))
+
+    # Create a new DataArray out of the analyzed NumPy array
+    new_coords = {}
+    new_dims = []
+    for c in data.dims:
+        if c == vert_dim:
+            continue
+        new_coords[c] = data.coords[c]
+        new_dims.append(c)
+    data_new = xarray.DataArray(data_new, coords=new_coords, dims=new_dims)
+
+    # Re-order to match diemnsion of original dataset
+    data_new = shuffle_dims(data_new, [d for d in data.dims if d != vert_dim])
+
+    # Copy attrs
+    data_new = copy_attrs(data, data_new)
+    if hasattr(data, 'name'):
+        data_new.name = data.name
+
+    return data_new
+
 
 def hybrid_to_pressure(ds, stride='m', P0=100000.):
     """ Convert hybrid vertical coordinates to pressure coordinates
@@ -80,13 +218,13 @@ def hybrid_to_pressure(ds, stride='m', P0=100000.):
     """
 
     # Grab necessary data fields
-    a, b = ds['hya'+stride], ds['hyb'+stride] # A, B coefficients
+    a, b = ds['hya'+stride], ds['hyb'+stride]  # A, B coefficients
     try:
-        P0_ref = ds['P0'] # Reference pressure
+        P0_ref = ds['P0']  # Reference pressure
     except KeyError:
         P0_ref = P0
     P0 = P0_ref
-    PS = ds['PS'] # Surface pressure field
+    PS = ds['PS']  # Surface pressure field
 
     pres_sigma = a*P0 + b*PS
     # Copy attributes and overwrite where different
@@ -94,6 +232,7 @@ def hybrid_to_pressure(ds, stride='m', P0=100000.):
     pres_sigma.attrs['long_name'] = "Pressure field on sigma levels"
 
     return pres_sigma
+
 
 def _interp_scipy(data, pres_levs, new_pres_levs):
 
@@ -121,7 +260,6 @@ def _interp_scipy(data, pres_levs, new_pres_levs):
     data_prep = np.reshape(data.data, temp_shape)
     logP_prep = np.reshape(np.log10(P.data), temp_shape)
 
-
     for col in range(cols):
 
         # Create interpolater. Need to disable bounds error checking so that
@@ -142,6 +280,7 @@ def _interp_scipy(data, pres_levs, new_pres_levs):
 
     return data_new
 
+
 def _interp_numpy(data, pres_levs, new_pres_levs):
     """ Interpolate all columns simultaneously by iterating over
     vertical dimension of original dataset, following methodology
@@ -156,8 +295,8 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
     axis = data.dims.index('lev')
     nlev = orig_shape[axis]
 
-    n_sigma = nlev # Number of original sigma levels
-    n_interp = len(new_pres_levs) # Number of interpolant levels
+    n_sigma = nlev  # Number of original sigma levels
+    n_interp = len(new_pres_levs)  # Number of interpolant levels
 
     data_interp_shape = [n_interp, ] + list(orig_shape[1:])
     data_new = np.zeros(data_interp_shape)
@@ -181,8 +320,8 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
 
         # Loop from the second sigma level to the last one
         for i in range(1, n_sigma):
-            a = np.ma.greater_equal(pres_levs.isel(lev=i), lev) # sigma-P > lev?
-            b = np.ma.less_equal(pres_levs.isel(lev=i-1), lev) # sigma-P < lev?
+            a = np.ma.greater_equal(pres_levs.isel(lev=i), lev)  # sigma-P > lev?
+            b = np.ma.less_equal(pres_levs.isel(lev=i-1), lev)  # sigma-P < lev?
 
             # Now, if the interpolant level is between the two
             # sigma levels, then we can use these two levels for the
@@ -217,10 +356,11 @@ def _interp_numpy(data, pres_levs, new_pres_levs):
 
     return data_new
 
+
 mandatory_levs = 100.*np.array([250., 300., 500., 700., 850., 925., 1000.])
 def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
                           method="numpy"):
-    """ Interpolate the vertical coordinaet of a given dataset to the
+    """ Interpolate the vertical coordinate of a given DataArray to the
     requested pressure levels.
 
     """
@@ -254,6 +394,7 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
     data_new = shuffle_dims(data_new, data.dims)
 
     return data_new
+
 
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
@@ -290,6 +431,7 @@ def calc_eke(ds):
     eke.attrs['units'] = 'm^2/s^2'
 
     return eke
+
 
 def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
     """ Compute meridional streamfunction.
@@ -452,6 +594,7 @@ def calc_mpsi(ds, diag_pressure=True, ptop=500., pbot=100500.):
 #
 #     return new_ds
 
+
 def scale_order(data, order=0, latex_units=False):
     """ Scale data by a power of 10, but preserve attributes.
 
@@ -472,6 +615,7 @@ def scale_order(data, order=0, latex_units=False):
 
     return scaled_data
 
+
 @preserve_attrs
 def seasonal_avg(data, season=None):
     """ Compute a mean for a given season, or for all seasons in a
@@ -487,6 +631,7 @@ def seasonal_avg(data, season=None):
             raise ValueError("Didn't understand season '%s'" % season)
         return seasonal_means.sel(season=season)
 
+
 @preserve_attrs
 def global_avg(data, weights=None, dims=['lon', 'lat']):
     """ Compute (area-weighted) global average over a DataArray
@@ -498,7 +643,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
 
     """
 
-    if weights is None: # Compute gaussian weights in latitude
+    if weights is None:  # Compute gaussian weights in latitude
         weights = area_grid(data.lon, data.lat)
         # Saving for later - compute latitudinal weighting
         # gw = weights.sum('lon')
@@ -544,6 +689,7 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
     #     return data.collapsed(['latitude', 'longitude'],
     #                           iris.analysis.MEAN, weights=weights.data).data
 
+
 @preserve_attrs
 def pd_minus_pi(ds, pd='F2000', pi='F1850'):
     """ Compute difference between present day and pre-industrial,
@@ -552,6 +698,7 @@ def pd_minus_pi(ds, pd='F2000', pi='F1850'):
 
     """
     return ds.sel(aer=pd) - ds.sel(aer=pi)
+
 
 def extract_feature(ds, feature='ocean'):
     """ Extract a masked dataset with only the requested feature
@@ -579,27 +726,29 @@ def extract_feature(ds, feature='ocean'):
 
     if not (feature in _FEATURE_MAP):
         raise ValueError("Expected one of [%s] as feature; got '%s'"
-                            % (feature_key_str, feature))
+                         % (feature_key_str, feature))
 
     if _MASKS is None:
         _get_masks()
-    if _MASKS is None: # still?!?!? Must be broken/unavailable
+    if _MASKS is None: #  still?!?!? Must be broken/unavailable
         raise RuntimeError("Couldn't load masks resource")
 
     mask = (_MASKS['ORO'] == _FEATURE_MAP[feature])
     return ds.where(mask)
+
 
 def _is_in_ocean(p, oceans):
     """ Returns 'true' if the supplied shapely.geometry.Point is located in
     an ocean. """
     return oceans.contains(p)
 
+
 def mask_ocean_points(dataset, oceans=None, pt_return=False,
                       longitude='lon', latitude='lat'):
 
     if oceans is None:
         oceans = _get_ocean_shapefile()
-    if oceans is None: # still?!? Must be broken
+    if oceans is None:  # still?!? Must be broken
         raise RuntimeError("Couldn't load default ocean shapefile")
 
     lons, lats = dataset[longitude], dataset[latitude]
@@ -616,7 +765,7 @@ def mask_ocean_points(dataset, oceans=None, pt_return=False,
     return in_ocean
 
 ################################################################
-## IRIS CUBE FUNCTIONS
+# IRIS CUBE FUNCTIONS
 
 def min_max_cubes(*cubes):
     """ Compute nice global min/max for a set of cubes. """
