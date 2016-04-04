@@ -34,15 +34,14 @@ leaf factor.
 from __future__ import print_function
 
 import os
-from collections import OrderedDict, Iterable, namedtuple
+from collections import OrderedDict, namedtuple
 from itertools import product
 
-from . utilities import remove_intermediates, arg_in_list, cdo_func
 from . extract import extract_variable
 from . io import load_variable
 from . convert import create_master
 
-__all__ = [ 'Case', 'Experiment', 'SingleCaseExperiment', ]
+__all__ = ['Case', 'Experiment', 'SingleCaseExperiment', ]
 
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
@@ -68,7 +67,6 @@ class Experiment(object):
         Path to directory to save analyzed data for this experiment
 
     """
-    # TODO: Add a `repr` method here
 
     def __init__(self, name, cases, data_dir='./', full_path=False,
                  naming_case='', archive='', work_dir='data/',
@@ -123,13 +121,12 @@ class Experiment(object):
         else:
             self.naming_case = naming_case
 
-        # Location of existing data
-        assert os.path.exists(data_dir)
-        self.data_dir = data_dir
-
         # Walk tree of directory containing existing data to ensure
         # that all the cases are represented
+        self.data_dir = data_dir
         if validate_data:
+            # Location of existing data
+            assert os.path.exists(data_dir)
             self._validate_data()
 
         # Location of working directory for saving intermediate
@@ -143,7 +140,7 @@ class Experiment(object):
             self.var_archive = os.path.join(self.work_dir,
                                             name + '.va')
 
-    ## Validation methods
+    # Validation methods
 
     def _validate_data(self):
         """ Validate that the specified data directory contains
@@ -162,7 +159,7 @@ class Experiment(object):
             except AssertionError:
                 raise AssertionError("Couldn't find data on path {}".format(full_path))
 
-    ## Properties and accessors
+    # Properties and accessors
 
     @property
     def cases(self):
@@ -228,7 +225,7 @@ class Experiment(object):
         """
         return os.path.join(self.data_dir, *case_bits)
 
-    ## Instance methods
+    # Instance methods
 
     def extract(self, var, **kwargs):
         """ Extract a given variable.
@@ -271,6 +268,17 @@ class Experiment(object):
 
         # Attach to current Experiment
         self.__dict__[var.varname] = var
+
+
+    def __repr__(self):
+        base_str = "{} -".format(self.name)
+        for case in self._cases:
+            base_str += "\n    {}: ".format(self._casenames[case])
+            base_str += " [" + \
+                        ", ".join(val for val in self._case_vals[case]) + \
+                        "]"
+        return base_str
+
 
 class SingleCaseExperiment(Experiment):
     """ Special case of Experiment where only a single model run

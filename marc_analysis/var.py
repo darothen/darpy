@@ -344,6 +344,9 @@ class Var(object):
 
         return out
 
+    def __repr__(self):
+        return self.__str__()
+
     def _get_atts(self):
         """ Return list of uniquely-identifying attributes. """
         atts = [self.varname, self.units, self.ncap_str]
