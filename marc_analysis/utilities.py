@@ -256,11 +256,13 @@ def shuffle_dims(d, first_dims='lev'):
 ################################################################
 ## OTHER ANALYSIS FUNCTIONS
 
+
 def shift_lons(lons):
     """ Shift longitudes from [0, 360] to [-180, 10] """
     mask = lons > 180
     lons[mask] = -(360. - lons[mask])
     return lons
+
 
 def area_grid(lon, lat, asarray=False):
     """ Compute the area of the grid specified by 1D arrays
