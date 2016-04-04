@@ -112,10 +112,8 @@ class Experiment(object):
 
         # Mapping to private information on case data
         self._cases = list(self._case_data.keys())
-        self._case_vals = { case: self._case_data[case].vals \
-                            for case in self._cases }
-        self._casenames = { case: self._case_data[case].longname \
-                            for case in self._cases }
+        self._case_vals = {case: self._case_data[case].vals for case in self._cases}
+        self._casenames = {case: self._case_data[case].longname for case in self._cases}
         # Add cases to this instance for "Experiment.[case]" access
         for case, vals in self._case_vals.items():
             setattr(self.__class__, case, vals)
