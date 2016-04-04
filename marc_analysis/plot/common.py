@@ -24,22 +24,47 @@ PLOTTYPE_ARGS = {
     'contourf': dict(extend='both'),
 }
 
-def format_zonal_axis(ax, axis='x'):
-    """ Properly format an axis with latitude labels. """
+
+def format_zonal_axis(ax, axis='x', reverse=False):
+    """ Properly format an axis with latitude labels.
+
+    Parameters
+    ----------
+    ax : Axes object
+        The axis to plot on
+    axis : str (default, 'x')
+        String indicating 'x' or 'y' axis to format
+    reverse : logical (default, False)
+        Reverse the zonal axis so that it runs from North->South
+
+    Returns
+    -------
+    Axes object with formatted zonal axis/
+    """
+
+    ticks = [-90, -60, -30, 0, 30, 60, 90]
+    lims = [-90, 90]
+
+    if reverse:
+        lims = lims[::-1]
+        ticks = ticks[::-1]
+
     if axis == 'x':
         set_labels(ax,
                    xlabel="Latitude (°N)")
 
-        ax.set_xlim(-90, 90)
-        ax.set_xticks([-90, -60, -30, 0, 30, 60, 90])
+        ax.set_xlim(*lims)
+        ax.set_xticks(ticks)
     else:
         set_labels(ax,
                    ylabel="Latitude (°N)")
 
-        ax.set_ylim(-90, 90)
-        ax.set_yticks([-90, -60, -30, 0, 30, 60, 90])
+        ax.set_ylim(*lims)
+        ax.set_yticks(ticks)
+
 
     return ax
+
 
 def make_geoaxes(projection='PlateCarree'):
     """ Create a GeoAxes mapping object.
