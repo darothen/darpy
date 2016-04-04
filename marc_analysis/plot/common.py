@@ -397,6 +397,7 @@ def save_figure(root, suffix="", fig=None, qual="quick"):
         fig.savefig(fn, **fig_dict)
     print("done.")
 
+
 def colortext_legend(text_color_map, ax=None, text_labels=None, **kwargs):
     """ Add a custom-built legend to a plot, where all the items in
     the legend have colored text corresponding to colored elements

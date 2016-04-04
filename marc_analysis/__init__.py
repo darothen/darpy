@@ -21,7 +21,7 @@ from . utilities import *
 from . var import *
 
 try:
-    from . plot import *
+    from . import plot
 except ImportError:
     # Possibly thrown by cartopy; just don't import plotting if
     # it's not available

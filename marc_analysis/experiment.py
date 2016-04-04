@@ -34,6 +34,7 @@ leaf factor.
 from __future__ import print_function
 
 import os
+import warnings
 from collections import OrderedDict, namedtuple
 from itertools import product
 
@@ -68,8 +69,12 @@ class Experiment(object):
 
     """
 
-    def __init__(self, name, cases, data_dir='./', full_path=False,
-                 naming_case='', archive='', work_dir='data/',
+    def __init__(self, name, cases,
+                 data_dir='./',
+                 full_path=False,
+                 naming_case='',
+                 archive='',
+                 work_dir='data/',
                  validate_data=True):
 
         """
@@ -132,7 +137,11 @@ class Experiment(object):
         # Location of working directory for saving intermediate
         # files
         if not os.path.exists(work_dir):
-            os.mkdir(work_dir)
+            try:
+                os.mkdir(work_dir)
+            except FileNotFoundError:
+                warnings.warn("Caution - couldn't make work directory {}"
+                              .format(work_dir))
         self.work_dir = work_dir
 
         # Name of var archive
@@ -230,13 +239,13 @@ class Experiment(object):
     def extract(self, var, **kwargs):
         """ Extract a given variable.
         """
-
         extract_variable(self, var, **kwargs)
 
-    def load(self, var, fix_times=False,
-             master=False, master_kwargs={}, **kwargs):
-        """ Load the data for a variable into xarray Datasets and
-        attach the variable and data to the current Experiment.
+    def load_extracted(self, var, fix_times=False,
+                       master=False, master_kwargs={}, **kwargs):
+        """ Load the data previously extracted for this experiment and
+        for a single variable into xarray Datasets and attach that data to
+        the current Experiment.
 
         """
 
@@ -269,6 +278,13 @@ class Experiment(object):
         # Attach to current Experiment
         self.__dict__[var.varname] = var
 
+
+    def load(self, var, fix_times=False, master=False, ):
+        """ Load a dataset directly from the experiment output archive.
+
+        TODO: Complete this stub.
+        """
+        pass
 
     def __repr__(self):
         base_str = "{} -".format(self.name)
