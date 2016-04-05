@@ -96,14 +96,17 @@ if __name__ == "__main__":
         pres_levs = pressure_field_m if lev_name=="lev" else pressure_field_i
         interped_field = ma.interp_to_pres_levels(ds[field], pres_levs,
                                                   interp_levels, "numpy")
+
+        # Copy attrs and set missing value attrs for CDO/NCO/etc
+        interped_field.attrs['_FillValue'] = np.nan
+        interped_field.attrs['missing_value'] = np.nan
+
         ma.copy_attrs(ds[field], interped_field)
         interp_das[field] = interped_field
 
     # Combine into new DataSet
     logger.debug("Combining...")
     new_ds = xr.Dataset(interp_das, attrs=ds.attrs)
-
-    # Append history to new dataset
 
     # Correct CF-compliant vertical dimensions
     if "ilev" in new_ds.dims:
