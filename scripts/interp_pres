@@ -114,7 +114,7 @@ if __name__ == "__main__":
         new_ds['lev'].attrs['units'] = 'hPa'
 
     # Append history
-    call_str = " ".join(sys.argv[1:])
+    call_str = __file__ + " ".join(sys.argv[1:])
     new_ds = ma.append_history(new_ds, call_str)
 
     # Save output file
