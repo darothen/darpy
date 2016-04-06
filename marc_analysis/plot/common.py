@@ -50,18 +50,15 @@ def format_zonal_axis(ax, axis='x', reverse=False):
         ticks = ticks[::-1]
 
     if axis == 'x':
-        set_labels(ax,
-                   xlabel="Latitude (°N)")
+        set_labels(ax, xlabel="Latitude (°N)")
 
         ax.set_xlim(*lims)
         ax.set_xticks(ticks)
     else:
-        set_labels(ax,
-                   ylabel="Latitude (°N)")
+        set_labels(ax, ylabel="Latitude (°N)")
 
         ax.set_ylim(*lims)
         ax.set_yticks(ticks)
-
 
     return ax
 
@@ -272,6 +269,7 @@ def add_colorbar(mappable, fig=None, ax=None, thickness=0.025,
     return cb
 
 def multipanel_figure(nrow, ncol, aspect=16./10., size=3.,
+                      sharex=True, sharey=True,
                       cbar_space=1., cbar_orientation='vertical',
                       **subplot_kw):
     """ Generate a Figure with subplots tuned to a user-specified
@@ -287,6 +285,8 @@ def multipanel_figure(nrow, ncol, aspect=16./10., size=3.,
         the width of each subplot in inches
     size : float, optional
         Height (in inches) of each subplot
+    share{x,y} : logical (optional)
+        Share x- or y-axes among plots
     cbar_space : float (optional)
         Extra space (in inches) to add to figure for colorbar.
     cbar_orientation : str, 'horizontal' or 'vertical'
@@ -313,7 +313,7 @@ def multipanel_figure(nrow, ncol, aspect=16./10., size=3.,
     default_subplot_kw.update(subplot_kw)
 
     fig, axes = plt.subplots(nrow, ncol, figsize=(fig_width, fig_height),
-                             sharex=True, sharey=True, squeeze=False,
+                             sharex=sharex, sharey=sharey, squeeze=False,
                              subplot_kw=default_subplot_kw)
 
     # Slightly tweak spacing between subplots
@@ -372,7 +372,7 @@ def save_figure(root, suffix="", fig=None, qual="quick"):
     fig_dict = {'bbox_inches': 'tight'}
     if qual == "production":
         format = "png"
-        fig_dict['dpi'] = 600
+        fig_dict['dpi'] = 300
     elif qual == "quick":
         format = "png"
         fig_dict['dpi'] = 100
