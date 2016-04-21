@@ -241,72 +241,102 @@ def _interp_scipy(data, pres_levs, new_pres_levs):
     return data_new
 
 
-def _interp_numpy(data, pres_levs, new_pres_levs):
+def _interp_numpy(data, coord_vals, new_coord_vals,
+                  reverse_coord=False, interpolation='linear'):
     """ Interpolate all columns simultaneously by iterating over
     vertical dimension of original dataset, following methodology
-    used in UV-CDAT. """
+    used in UV-CDAT.
+
+    Parameters
+    ----------
+    data : xarray.DataArray
+        The data (array) of values to be interpolated
+    coord_vals : xarray.DataArray
+        An array containing a 3D field to be used as an alternative vertical coordinate
+    new_coord_vals : iterable
+        New coordinate values to inerpolate to
+    reverse_coord : logical, default=False
+        Indicates that the coord *increases* from index 0 to n; should be "True" when
+        interpolating pressure fields in CESM
+    interpolation : str
+        "log" or "linear", indicating the interpolation method
+
+    Returns
+    -------
+    list of xarray.DataArrays of length equivalent to that of new_coord_vals, with the
+    field interpolated to each value in new_coord_vals
+
+    """
 
     # Shuffle dims so that 'lev' is first for simplicity
     data = shuffle_dims(data)
-    pres_levs = shuffle_dims(pres_levs)
+    coord_vals = shuffle_dims(coord_vals)
 
     # Find the 'lev' axis for interpolating
     orig_shape = data.shape
     axis = data.dims.index('lev')
-    nlev = orig_shape[axis]
+    n_lev = orig_shape[axis]
 
-    n_sigma = nlev  # Number of original sigma levels
-    n_interp = len(new_pres_levs)  # Number of interpolant levels
+    n_interp = len(new_coord_vals)  # Number of interpolant levels
 
     data_interp_shape = [n_interp, ] + list(orig_shape[1:])
     data_new = np.zeros(data_interp_shape)
 
     # Shape of array at any given level
-    flat_shape = pres_levs.isel(lev=0).shape
+    flat_shape = coord_vals.isel(lev=0).shape
 
     # Loop over the interpolant levels
     for ilev in range(n_interp):
 
-        lev = new_pres_levs[ilev]
+        lev = new_coord_vals[ilev]
 
         P_abv = np.ones(flat_shape)
-        # Array on sigma level above, below
+        # Array on level above, below
         A_abv, A_bel = -1.*P_abv, -1.*P_abv
-        # Pressure on sigma level above, below
+        # Coordinate on level above, below
         P_abv, P_bel = -1.*P_abv, -1.*P_abv
 
-        # Mask area where pressure == levels
+        # Mask area where coordinate == levels
         P_eq = np.ma.masked_equal(P_abv, -1)
 
         # Loop from the second sigma level to the last one
-        for i in range(1, n_sigma):
-            a = np.ma.greater_equal(pres_levs.isel(lev=i), lev)  # sigma-P > lev?
-            b = np.ma.less_equal(pres_levs.isel(lev=i-1), lev)  # sigma-P < lev?
+        for i in range(1, n_lev):
+            # TODO: This could be combined into a single statement using a "sign" function
+            #       to merely detect when the bracketing layers are both above and below.
+            # e.g,
+            # a = np.sign((coord_vals.isel(lev=i) - lev)*(coord_vals.isel(lev=i-1) - lev))
+            if reverse_coord:
+                a = np.ma.greater_equal(coord_vals.isel(lev=i), lev)
+                b = np.ma.less_equal(coord_vals.isel(lev=i - 1), lev)
+            else:
+                a = np.ma.less_equal(coord_vals.isel(lev=i), lev)
+                b = np.ma.greater_equal(coord_vals.isel(lev=i - 1), lev)
 
             # Now, if the interpolant level is between the two
-            # sigma levels, then we can use these two levels for the
+            # coordinate levels, then we can use these two levels for the
             # interpolation.
             a = (a & b)
 
-            # Pressure on sigma level above, below
-            # P_abv[a], P_bel[a] = P[i].data[a], P[i-1].data[a]
-            P_abv = np.where(a, pres_levs[i], P_abv)
-            P_bel = np.where(a, pres_levs[i-1], P_bel)
-            # Array on sigma level above, below
-            # A_abv[a], A_bel[a] = A[i].data[a], A[i-1].data[a]
+            # Coordinate on level above, below
+            P_abv = np.where(a, coord_vals[i], P_abv)
+            P_bel = np.where(a, coord_vals[i - 1], P_bel)
+            # Array on level above, below
             A_abv = np.where(a, data[i], A_abv)
             A_bel = np.where(a, data[i-1], A_bel)
 
-            # sel = P[i] == lev
-            # P_eq[sel] = A[i].data[sel]
-            P_eq = np.where(pres_levs[i] == lev, data[i], P_eq)
+            P_eq = np.where(coord_vals[i] == lev, data[i], P_eq)
 
         # If no data below, set to missing value; if there is, set to
         # (interpolating) level
         P_val = np.ma.masked_where((P_bel == -1), np.ones_like(P_bel)*lev)
 
         # Calculate interpolation
-        tl = np.log(P_val/P_bel)/np.log(P_abv/P_bel)*(A_abv - A_bel) + A_bel
+        if interpolation == 'log':
+            tl = np.log(P_val/P_bel)/np.log(P_abv/P_bel)*(A_abv - A_bel) + A_bel
+        elif interpolation == 'linear':
+            tl = A_bel + (P_val-P_bel)*(A_abv - A_bel)/(P_abv - P_bel)
+        else:
+            raise ValueError("Don't know how to interpolate '{}'".format(interpolation))
         tl.fill_value = np.nan
 
         # Copy into result array, masking where values are missing
