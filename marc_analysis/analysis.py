@@ -387,6 +387,34 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
     return data_new
 
 
+def interp_by_field(data, coord, new_coord_levs,
+                    reverse_coord=False, interpolation="lin"):
+    """ Interpolate a given data field based on an auxiliary coordinate field of
+    equivalent shape
+
+    """
+    data = data.squeeze()
+    coord = coord.squeeze()
+    new_coord_levs = np.asarray(new_coord_levs)
+
+    # Interpolate coordinate field
+    data_new = _interp_numpy(data, coord, new_coord_levs, reverse_coord, interpolation)
+
+    new_coords = {coord.name: new_coord_levs}
+    dims = ['lev', ]
+    for c in data.dims:
+        if c == 'lev':
+            continue
+        new_coords[c] = data.coords[c]
+        dims.append(c)
+
+    data_new = xarray.DataArray(data_new, coords=new_coords, dims=dims)
+
+    # Re-order to match dimension shape of original dataset
+    data_new = shuffle_dims(data_new, data.dims)
+
+    return data_new
+
 def calc_eke(ds):
     """ Compute transient eddy kinetic energy.
 
