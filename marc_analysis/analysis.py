@@ -242,7 +242,7 @@ def _interp_scipy(data, pres_levs, new_pres_levs):
 
 
 def _interp_numpy(data, coord_vals, new_coord_vals,
-                  reverse_coord=False, interpolation='linear'):
+                  reverse_coord=False, interpolation='lin'):
     """ Interpolate all columns simultaneously by iterating over
     vertical dimension of original dataset, following methodology
     used in UV-CDAT.
@@ -259,7 +259,7 @@ def _interp_numpy(data, coord_vals, new_coord_vals,
         Indicates that the coord *increases* from index 0 to n; should be "True" when
         interpolating pressure fields in CESM
     interpolation : str
-        "log" or "linear", indicating the interpolation method
+        "log" or "lin", indicating the interpolation method
 
     Returns
     -------
@@ -333,7 +333,7 @@ def _interp_numpy(data, coord_vals, new_coord_vals,
         # Calculate interpolation
         if interpolation == 'log':
             tl = np.log(P_val/P_bel)/np.log(P_abv/P_bel)*(A_abv - A_bel) + A_bel
-        elif interpolation == 'linear':
+        elif interpolation == 'lin':
             tl = A_bel + (P_val-P_bel)*(A_abv - A_bel)/(P_abv - P_bel)
         else:
             raise ValueError("Don't know how to interpolate '{}'".format(interpolation))
@@ -363,7 +363,8 @@ def interp_to_pres_levels(data, pres_levs, new_pres_levs=mandatory_levs,
     if method == "scipy":
         data_new = _interp_scipy(data, pres_levs, new_pres_levs)
     elif method == "numpy":
-        data_new = _interp_numpy(data, pres_levs, new_pres_levs)
+        data_new = _interp_numpy(data, pres_levs, new_pres_levs,
+                                 reverse_coord=True, interpolation='log')
     else:
         raise ValueError("Don't know method '%s'" % method)
 
