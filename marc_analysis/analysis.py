@@ -400,7 +400,7 @@ def interp_by_field(data, coord, new_coord_levs,
     # Interpolate coordinate field
     data_new = _interp_numpy(data, coord, new_coord_levs, reverse_coord, interpolation)
 
-    new_coords = {coord.name: new_coord_levs}
+    new_coords = {'lev': new_coord_levs}
     dims = ['lev', ]
     for c in data.dims:
         if c == 'lev':
