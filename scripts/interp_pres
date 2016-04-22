@@ -27,7 +27,7 @@ parser.add_argument("in_fn", metavar="in.nc", type=str,
 parser.add_argument("out_fn", metavar="out.nc", type=str,
                     help="Name of output file")
 parser.add_argument("--levels", nargs="+", type=float, required=True,
-               help="Interpolation levels in hPa.")
+                    help="Interpolation levels in hPa.")
 parser.add_argument("--fields", nargs="+", type=str,
                     help="3D fields to interpolate; if not included, will interpolate"
                          " all available 3D fields.")
@@ -59,19 +59,24 @@ if __name__ == "__main__":
         for v in ds.data_vars:
             if "lev" in ds[v].dims:
                 fields_to_process.append(v)
-                MANDATORY_FIELDS.add("hyam")
-                MANDATORY_FIELDS.add("hybm")
             if "ilev" in ds[v].dims:
                 fields_to_process.append(v)
-                MANDATORY_FIELDS.add("hyai")
-                MANDATORY_FIELDS.add("hybi")
     else:
-        fields_to_process = fields
+        fields_to_process = args.fields
+
+    # Collect mandatory hybrid-pressure level coefficients
+    for field in fields_to_process:
+        if "lev" in ds[field].dims:
+            MANDATORY_FIELDS.add("hyam")
+            MANDATORY_FIELDS.add("hybm")
+        if "ilev" in ds[field].dims:
+            MANDATORY_FIELDS.add("hyai")
+            MANDATORY_FIELDS.add("hybi")
 
     # Sanity checks -
     # 1) Necessary fields are included in the dataset
     for field in MANDATORY_FIELDS:
-        if not field in ds.data_vars:
+        if field not in ds.data_vars:
             raise ValueError("Required field {} wasn't found in dataset {}"
                              .format(field, args.in_fn))
 
@@ -93,7 +98,7 @@ if __name__ == "__main__":
             continue
         logger.debug("    " + field)
         lev_name = "lev" if "lev" in ds[field].dims else "ilev"
-        pres_levs = pressure_field_m if lev_name=="lev" else pressure_field_i
+        pres_levs = pressure_field_m if lev_name =="lev" else pressure_field_i
         interped_field = ma.interp_to_pres_levels(ds[field], pres_levs,
                                                   interp_levels, "numpy")
 
