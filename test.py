@@ -6,8 +6,8 @@ cases = [
     ma.Case('act', 'activation scheme', ['arg_min_smax', 'arg_comp', ]),
 ]
 exp = ma.Experiment('test', cases, 
-                    data_dir="/Users/daniel/Desktop/MARC_AIE/",
-                    work_dir="/Users/daniel/Desktop/MARC_AIE/work/")
+                    data_dir="data",
+                    work_dir="work/", validate_data=False)
 
 ## Set up the variables to extract
 var_dict = dict(
@@ -24,6 +24,6 @@ for v, vv in var_dict.items():
 print("--"*40, "\n")
 
 ## Extract the variables and load a master dataset into memory
-for key, d in var_dict.items():
-    exp.extract(d, re_extract=True, years_omit=0)
-    exp.load(d, master=True)
+# for key, d in var_dict.items():
+#     exp.extract(d, re_extract=True, years_omit=0)
+#     exp.load(d, master=True)
