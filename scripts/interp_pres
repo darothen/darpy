@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                   interp_levels, "numpy")
 
         # Copy attrs and set missing value attrs for CDO/NCO/etc
-        interped_field.attrs['_FillValue'] = np.nan
+        # interped_field.attrs['_FillValue'] = np.nan
         interped_field.attrs['missing_value'] = np.nan
 
         ma.copy_attrs(ds[field], interped_field)

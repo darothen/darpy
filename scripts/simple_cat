@@ -81,7 +81,7 @@ if __name__ == "__main__":
     logger.debug("Loading files...")
     for fn in args.files:
         logger.debug("   " + fn)
-        ds = xarray.open_dataset(fn, decode_times=False)
+        ds = xarray.open_dataset(fn, decode_times=False, decode_cf=False)
         all_ds.append(ds)
 
     # Concatenate
