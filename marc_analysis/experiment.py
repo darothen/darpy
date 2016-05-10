@@ -64,9 +64,6 @@ class Experiment(object):
     data_dir : str
         Path to directory containing the unanalyzed data for this
         experiment
-    work_dir : str
-        Path to directory to save analyzed data for this experiment
-
     """
 
     def __init__(self, name, cases,
@@ -74,7 +71,6 @@ class Experiment(object):
                  full_path=False,
                  naming_case='',
                  archive='',
-                 work_dir='data/',
                  validate_data=True):
 
         """
@@ -86,9 +82,6 @@ class Experiment(object):
             The levels of the experimental cases being considered
         data_dir : str
             Path to directory containing the unanalyzed data for this
-            experiment
-        work_dir : str
-            Path to directory to save analyzed data for this experiment
         full_path : bool
             Indicates whether the data directory structure leads immediately
             to a folder containing the output data (if `False`) or to the
@@ -134,20 +127,6 @@ class Experiment(object):
             assert os.path.exists(data_dir)
             self._validate_data()
 
-        # Location of working directory for saving intermediate
-        # files
-        if not os.path.exists(work_dir):
-            try:
-                os.mkdir(work_dir)
-            except FileNotFoundError:
-                warnings.warn("Caution - couldn't make work directory {}"
-                              .format(work_dir))
-        self.work_dir = work_dir
-
-        # Name of var archive
-        if not archive:
-            self.var_archive = os.path.join(self.work_dir,
-                                            name + '.va')
 
     # Validation methods
 
@@ -254,10 +233,6 @@ class Experiment(object):
 
         # Save the cases
         var._cases = self.cases
-
-        # Get the location of the extracted variable data based
-        # on the Experiment
-        save_dir = self.work_dir
 
         # Load the data
         var._data = dict()
