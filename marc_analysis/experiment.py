@@ -46,6 +46,11 @@ __all__ = ['Case', 'Experiment', 'SingleCaseExperiment', ]
 
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 
+#: Hack for Py2/3 basestring type compatibility
+if 'basestring' not in globals():
+    basestring = str
+
+
 class Experiment(object):
     """ CESM/MARC Experiment details.
 
@@ -67,10 +72,11 @@ class Experiment(object):
     """
 
     def __init__(self, name, cases,
+                 timeseries=False,
                  data_dir='./',
                  full_path=False,
-                 naming_case='',
-                 archive='',
+                 output_prefix="",
+                 output_suffix=".nc",
                  validate_data=True):
 
         """
@@ -80,15 +86,23 @@ class Experiment(object):
             The name of the experiment.
         cases : iterable of Case namedtuples
             The levels of the experimental cases being considered
+        timeseries : logical
+            If "True", then the data is in "timeseries" form instead of
+            "timeslice" form; that is, in the leaf folders of the archive
+            hierarchy, the files are split by variable rather than snapshots
+            of all fields at a given time.
+        cases : str or list
         data_dir : str
-            Path to directory containing the unanalyzed data for this
+            Path to directory containing the unanalyzed data for this experiment
         full_path : bool
             Indicates whether the data directory structure leads immediately
             to a folder containing the output data (if `False`) or to the
             hierarchical structure output by CESM/MARC by default
-        naming_case: str, optional
-            The case which lends itself to the actual file naming scheme
-            (usually the last one)
+        output_prefix : str
+            Global prefix for all output files as a string, which can optionally
+            include named format directives indicated which case bit to supply
+        output_suffix : str
+            Suffix ending all output files. Defaults to ".nc"
         validate_data : bool, optional (default True)
             Validate that the specified case structure is reflected in the
             directory structure passed via `data_dir`
@@ -114,10 +128,9 @@ class Experiment(object):
         for case, vals in self._case_vals.items():
             setattr(self.__class__, case, vals)
 
-        if not naming_case:
-            self.naming_case = self._cases[-1]
-        else:
-            self.naming_case = naming_case
+        self.timeseries = timeseries
+        self.output_prefix = output_prefix
+        self.output_suffix = output_suffix
 
         # Walk tree of directory containing existing data to ensure
         # that all the cases are represented
@@ -127,9 +140,7 @@ class Experiment(object):
             assert os.path.exists(data_dir)
             self._validate_data()
 
-
     # Validation methods
-
     def _validate_data(self):
         """ Validate that the specified data directory contains
         a hierarchy of directories which match the specified
@@ -148,7 +159,6 @@ class Experiment(object):
                 raise AssertionError("Couldn't find data on path {}".format(full_path))
 
     # Properties and accessors
-
     @property
     def cases(self):
         """ Property wrapper for list of cases. Superfluous, but
@@ -192,7 +202,7 @@ class Experiment(object):
         ['F2000', 'F1850']
         ['arg_comp', 'arg_min_smax']
         """
-        return [ self._case_vals[case] for case in self._cases ]
+        return [self._case_vals[case] for case in self._cases]
 
     def get_case_vals(self, case):
         """ Return a list of strings with the values associated
@@ -206,18 +216,122 @@ class Experiment(object):
         """
         return self._case_vals[case]
 
-    def case_path(self, *case_bits):
+    def get_case_bits(self, **case_kws):
+        """ Return the given case keywords in the order they're defined in
+        for this experiment. """
+        return [case_kws[case] for case in self.cases]
+
+    def get_case_kws(self, *case_bits):
+        """ Return the given case bits as a dictionary. """
+        return {name: val for name, val in zip(self.cases, case_bits)}
+
+    def case_path(self, *case_bits, **case_kws):
         """ Return the path to a particular set of case's output from this
         experiment.
 
         """
-        return os.path.join(self.data_dir, *case_bits)
+        if case_kws:
+            # Re-assemble into ordered bits
+            case_bits = self.get_case_bits(**case_kws)
+            return os.path.join(self.data_dir, *case_bits)
+        elif case_bits:
+            return os.path.join(self.data_dir, *case_bits)
+        else:
+            raise ValueError("Expected either a list or dict of case values")
 
-    # Instance methods
+    def case_prefix(self, **case_bits):
+        """ Return the output prefix for a given case. """
+        return self.output_prefix.format(**case_bits)
 
+    # Loading methods
+    def load(self, var, fix_times=False, master=False, **case_kws):
+        """ Load a given variable from this experiment's output archive.
+
+        Parameters
+        ----------
+        var : str or Var
+            Either the name of a variable to load, or a Var instanced
+            defining a specific output variable
+        fix_times : logical
+            Fix times if they fall outside an acceptable calendar
+        master : logical
+            Return a master dataset, with each case defined as a unique
+            identifying dimension
+        case_kws : dict (optional)
+            Additional keywords, which will be interpreted as a specific
+            case to load from the experiment.
+
+        """
+        if self.timeseries:
+            return self._load_timeseries(var, fix_times, master, **case_kws)
+        else:
+            return self._load_timeslice(var, fix_times, master, **case_kws)
+
+    def _load_timeslice(self, var, fix_times=False, master=False, **case_kws):
+        raise NotImplementedError
+
+    def _load_timeseries(self, var, fix_times=False, master=False, **case_kws):
+        """ Load a timeseries dataset directly from the experiment output
+        archive.
+
+        See Also
+        --------
+        Experiment.load : sentinel for loading data
+        """
+
+        is_var = not isinstance(var, basestring)
+        if is_var:
+            field = var.varname
+            is_var = True
+        else:
+            field = var
+
+        if case_kws:
+            # Load/return a single case
+            prefix = self.case_prefix(**case_kws)
+
+            path_to_file = os.path.join(
+                self.case_path(**case_kws),
+                ".".join([self.case_prefix(**case_kws), field, self.output_suffix])
+            )
+            ds = load_variable(field, path_to_file, fix_times=fix_times)
+
+            return ds
+        else:
+
+            data = dict()
+
+            # Load/return all cases
+            for case_bits in self.all_cases():
+                case_kws = self.get_case_kws(*case_bits)
+
+                path_to_file = os.path.join(
+                    self.case_path(*case_bits),
+                    ".".join([self.case_prefix(**case_kws), field,
+                              self.output_suffix])
+                )
+                data[case_bits] = \
+                    load_variable(field, path_to_file, fix_times=fix_times)
+            if is_var:
+                var._data = data
+                var._loaded = True
+
+            if master:
+                ds_master = create_master(self, field, data)
+
+                if is_var:
+                    var.master = ds_master
+
+                return ds_master
+
+            return data
+
+    # Extraction methods - deprecated!
     def extract(self, var, **kwargs):
         """ Extract a given variable.
         """
+        raise DeprecationWarning
+
         extract_variable(self, var, **kwargs)
 
     def load_extracted(self, var, fix_times=False,
@@ -227,6 +341,7 @@ class Experiment(object):
         the current Experiment.
 
         """
+        raise DeprecationWarning
 
         if var._loaded:
             raise Exception("Data is already loaded")
@@ -253,14 +368,6 @@ class Experiment(object):
         # Attach to current Experiment
         self.__dict__[var.varname] = var
 
-
-    def load(self, var, fix_times=False, master=False, ):
-        """ Load a dataset directly from the experiment output archive.
-
-        TODO: Complete this stub.
-        """
-        pass
-
     def __repr__(self):
         base_str = "{} -".format(self.name)
         for case in self._cases:
@@ -285,7 +392,7 @@ class SingleCaseExperiment(Experiment):
             The name to use when referencing the model run
 
         """
-        cases = [ Case(name, name, [ name, ]), ]
+        cases = [Case(name, name, [name, ]), ]
         super(self.__class__, self).__init__(name, cases, validate_data=False,
                                              **kwargs)
 

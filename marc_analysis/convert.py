@@ -13,6 +13,11 @@ from xarray import DataArray, Dataset
 
 __all__ = [ 'cyclic_dataarray', 'create_master', 'dataset_to_cube', ]
 
+#: Hack for Py2/3 basestring type compatibility
+if 'basestring' not in globals():
+    basestring = str
+
+
 def cyclic_dataarray(da, coord='lon'):
     """ Add a cyclic coordinate point to a DataArray along a specified
     named coordinate dimension.
@@ -49,7 +54,7 @@ def cyclic_dataarray(da, coord='lon'):
 
     return new_da
 
-def create_master(exp, var, new_fields=["PS", ]):
+def create_master(exp, var, data=None, new_fields=[]):
     """ Save a dictionary which holds variable data for all
     activation and aerosol case combinations to a dataset
     with those cases as auxiliary indices.
@@ -61,6 +66,9 @@ def create_master(exp, var, new_fields=["PS", ]):
     var : Var
         A Var object containing the data and cases to infer when
         creating the master dataset.
+    data : dict (optional, unless var is a string)
+        Dictionary of dictionaries/datasets containing the
+        variable data to be collected into a master dataset
     new_fields : list of strs (optional)
         A list of the keys in each DataSet to include in the
         final multi-keyed master
@@ -73,15 +81,21 @@ def create_master(exp, var, new_fields=["PS", ]):
 
     """
 
-    try: # see if it's a Var, and access metadata from the associated
-         # Experiment
-        data_dict = var.data
-        all_case_vals = exp.all_case_vals()
-
+    if isinstance(var, basestring):
+        assert data is not None
+        data_dict = data
+        new_fields.append(var)
+    else:
+        # see if it's a Var, and access metadata from the associated
+        # Experiment
+        if data is None:
+            data_dict = var.data
+        else:
+            data_dict = data
         new_fields.append(var.varname)
         new_fields.extend(var.oldvar)
-    except AttributeError:
-        raise ValueError("`var` must be a Var or a string.")
+
+    all_case_vals = exp.all_case_vals()
 
     # Post-process the case inspection a bit:
     # 1) Promote any single-value case to a list with one entry

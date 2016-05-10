@@ -254,7 +254,11 @@ class Var(object):
         self._load(exp, method, fix_times, **kwargs)
 
     def _load(self, exp, method, fix_times, **kwargs):
-        """ Loading workhorse method. """
+        """ Loading workhorse method.
+
+        NOTE: This is deprecated following the Experiment rewrite
+        """
+        raise DeprecationWarning
 
         if self._loaded:
             raise Exception("Data is already loaded")
@@ -656,4 +660,3 @@ class common_vars:
 # #     CDOVar.low_var(v for v )
 # # }
 # # ]
-
