@@ -228,9 +228,10 @@ def load_variable(var_name, path_to_file,
         yr, mm, dy = timestamp[0].split("-")
 
         yr = int(yr)
-        if yr < 1650: yr = str(2000)
+        if yr < 1650:
+            yr = str(2001)
 
-        # Re-construct at Jan 01, 2000 and re-set
+        # Re-construct at Jan 01, 2001 and re-set
         timestamp[0] = "-".join([yr, mm, dy])
         new_units = " ".join([interval, "since"] + timestamp)
         ds.time.attrs['units'] = new_units
