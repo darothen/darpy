@@ -127,7 +127,7 @@ def infer_x_y(darray, x=None, y=None):
         return list(dims)
 
 
-def geo_plot(darray, ax=None, method='contourf',
+def geo_plot(darray, lon='lon', lat='lat', ax=None, method='contourf',
              projection='PlateCarree', grid=False, **kwargs):
     """ Create a global plot of a given variable.
 
@@ -137,6 +137,8 @@ def geo_plot(darray, ax=None, method='contourf',
         The darray to be plotted.
     ax : axis
         An existing axis instance, else one will be created.
+    lon, lat : str
+        Names of dimensions corresponding to longitude and latitude
     method : str
         String to use for looking up name of plotting function via iris
     projection : str or tuple
@@ -151,8 +153,8 @@ def geo_plot(darray, ax=None, method='contourf',
     """
 
     # Check if darray needs a cyclic point added
-    if not check_cyclic(darray, coord='lon'):
-        darray = cyclic_dataarray(darray, coord='lon')
+    if not check_cyclic(darray, coord=lon):
+        darray = cyclic_dataarray(darray, coord=lon)
 
     # Set up plotting function
     if method in PLOTTYPE_ARGS:
@@ -205,7 +207,7 @@ def geo_plot(darray, ax=None, method='contourf',
         cmap_kws = infer_cmap_params(darray.data, **extra_args)
         extra_args.update(cmap_kws)
 
-    gp = plot_func(darray.lon.values, darray.lat.values, darray.data,
+    gp = plot_func(darray[lon].values, darray[lat].values, darray.data,
                    **extra_args)
 
     return ax, gp
