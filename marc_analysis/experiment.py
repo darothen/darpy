@@ -292,7 +292,7 @@ class Experiment(object):
 
             path_to_file = os.path.join(
                 self.case_path(**case_kws),
-                ".".join([self.case_prefix(**case_kws), field, self.output_suffix])
+                self.case_prefix(**case_kws) + field + self.output_suffix,
             )
             ds = load_variable(field, path_to_file, fix_times=fix_times)
 
@@ -307,8 +307,7 @@ class Experiment(object):
 
                 path_to_file = os.path.join(
                     self.case_path(*case_bits),
-                    ".".join([self.case_prefix(**case_kws), field,
-                              self.output_suffix])
+                    self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
                 data[case_bits] = \
                     load_variable(field, path_to_file, fix_times=fix_times)
