@@ -227,10 +227,10 @@ def load_variable(var_name, path_to_file,
         timestamp = timestamp.split(" ")
         yr, mm, dy = timestamp[0].split("-")
 
-        yr = int(yr)
-        if yr < 1650:
-            yr = str(2001)
-
+        if int(yr) < 1650:
+            yr = 2001
+        yr = str(yr)
+            
         # Re-construct at Jan 01, 2001 and re-set
         timestamp[0] = "-".join([yr, mm, dy])
         new_units = " ".join([interval, "since"] + timestamp)
