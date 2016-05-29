@@ -33,6 +33,8 @@ parser.add_argument("in_fn", metavar="in.nc", type=str,
                     help="Name of input file")
 parser.add_argument("out_fn", metavar="out.nc", type=str,
                     help="Name of output file")
+parser.add_argument("-f", "--f-interp", type=str, 
+                    help="Optional, auxiliary file containing interpolation field")
 parser.add_argument("--levels", nargs="+", type=float, required=True,
                     help="Interpolation levels, matching the units of the named"
                          " interpolation field")
@@ -57,12 +59,20 @@ if __name__ == "__main__":
     # Load in the dataset
     logger.debug("Reading {}".format(args.in_fn))
     ds = xr.open_dataset(args.in_fn, decode_times=False, decode_cf=False)
-
-    if args.field not in ds:
-        raise ValueError("Interpolation field ({}) not found in dataset ({})"
-                         .format(args.field, args.in_fn))
-
-    interp_field_dims = ds[args.field].dims
+    if args.f_interp:
+        logger.debug("Reading {}".format(args.f_interp))
+        ds_interp = xr.open_dataset(args.f_interp, decode_times=False, decode_cf=False)
+        if args.field not in ds_interp:
+            raise ValueError("Interpolation field ({}) not found in ({})"
+                             .format(args.field, args.f_interp))
+        interp_field_dims = ds_interp[args.field].dims
+        interpolation_field = ds_interp[args.field]
+    else:
+        if args.field not in ds:
+            raise ValueError("Interpolation field ({}) not found in ({})"
+                             .format(args.field, args.f_interp))
+        interp_field_dims = ds[args.field].dims
+        interpolation_field = ds[args.field]
 
     # Look up fields to process
     fields_to_process = []
@@ -86,7 +96,6 @@ if __name__ == "__main__":
     logger.debug("Interpolating...")
     for field in fields_to_process:
         logger.debug("    " + field)
-        interpolation_field = ds[args.field]
         interpolation_levels = args.levels
         interped_field = ma.interp_by_field(ds[field],
                                             interpolation_field,

@@ -7,6 +7,7 @@ from matplotlib.colors import from_levels_and_colors, Normalize
 from matplotlib.pyplot import get_cmap, colorbar, savefig
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 from seaborn.apionly import color_palette
 
 import numpy as np
@@ -45,61 +46,71 @@ def format_zonal_axis(ax, axis='x', reverse=False):
     ticks = [-90, -60, -30, 0, 30, 60, 90]
     lims = [-90, 90]
 
+    locator = mticker.FixedLocator(ticks)
+    def _fmt(x, pos):
+        if x == 0:
+            label = "{:d}".format(x)
+        elif x > 0:
+            label = "{:d}°N".format(x)
+        else:
+            label = "{:d}°S".format(x)
+        return label
+    formatter = mticker.FuncFormatter(_fmt)
+    
     if reverse:
         lims = lims[::-1]
         ticks = ticks[::-1]
 
     if axis == 'x':
-        set_labels(ax, xlabel="Latitude (°N)")
+        set_labels(ax, xlabel="Latitude")
 
         ax.set_xlim(*lims)
-        ax.set_xticks(ticks)
+        # ax.set_xticks(ticks)
+        ax.xaxis.set_major_locator(locator)
+        ax.xaxis.set_major_formatter(formatter)
     else:
-        set_labels(ax, ylabel="Latitude (°N)")
+        set_labels(ax, ylabel="Latitude")
 
         ax.set_ylim(*lims)
-        ax.set_yticks(ticks)
+        # ax.set_yticks(ticks)
+        ax.yaxis.set_major_locator(locator)
+        ax.yaxis.set_major_formatter(formatter)
 
     return ax
 
 
-def make_geoaxes(projection='PlateCarree'):
+def make_geoaxes(projection='PlateCarree', proj_kws={}):
     """ Create a GeoAxes mapping object.
 
     Parameters
     ----------
-    projection : str or a 2-tuple
-        Either pass in the name of a projection, which will
-        assume that default arguments for that projection are
-        requested, or pass a 2-element tuple where the first
-        element is the name of the projection and hte second
-        element is a keyword dictionary with the arguments defining
-        that projection.
+    projection : str
+        Name of the projection to use when creating the map
+    proj_kws : dict (optional)
+        Additional keyword arguments to pass to the projection 
+        creation function
 
     Returns
     -------
     ax : GeoAxes object with requeted mapping projection.
 
     """
-    # Do we have a complex projection to deal with?
-    if isinstance(projection, (list, tuple)):
-        if len(projection) != 2:
-            raise ValueError("Expected 'projection' to only have 2 values")
-        projection, proj_kwargs = projection[0], projection[1]
-    else:
-        proj_kwargs = {}
+  
+    proj_kwargs = {}
+    if proj_kws:
+        proj_kwargs.update(proj_kws)
 
     proj = get_projection(projection, **proj_kwargs)
     ax = plt.axes(projection=proj)
 
     return ax
 
-def get_projection(name, **kwargs):
+def get_projection(name, *args, **kwargs):
     """ Instantiate a Cartopy coordinate reference system for
     constructing a GeoAxes object.
 
     """
-    return ccrs.__dict__[name](**kwargs)
+    return ccrs.__dict__[name](*args, **kwargs)
 
 
 def check_cyclic(data, coord='lon'):

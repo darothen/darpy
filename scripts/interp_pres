@@ -26,6 +26,10 @@ parser.add_argument("in_fn", metavar="in.nc", type=str,
                     help="Name of input file")
 parser.add_argument("out_fn", metavar="out.nc", type=str,
                     help="Name of output file")
+parser.add_argument("-f", "--f-interp", type=str,
+                    help="Optional, auxiliary file containing interpolation field")
+parser.add_argument("-p", "--pressure", type=str, default="PRESSURE",
+                    help="Optional, name of pressure field in auxiliary file.")
 parser.add_argument("--levels", nargs="+", type=float, required=True,
                     help="Interpolation levels in hPa.")
 parser.add_argument("--fields", nargs="+", type=str,
@@ -51,6 +55,13 @@ if __name__ == "__main__":
     # Load in the dataset
     logger.debug("Reading {}".format(args.in_fn))
     ds = xr.open_dataset(args.in_fn, decode_times=False, decode_cf=False)
+    if args.f_interp:
+        logger.debug("Reading {}".format(args.f_interp))
+        ds_interp = xr.open_dataset(args.f_interp, decode_times=False, decode_cf=False)
+        if args.pressure not in ds_interp:
+            raise ValueError("Pressure field ({}) not found in ({})"
+                             .format(args.pressure, args.f_interp))
+        pressure_field_m = pressure_field_i = ds_interp[args.pressure]
 
     # Look up fields to process
     fields_to_process = []
@@ -63,6 +74,11 @@ if __name__ == "__main__":
                 fields_to_process.append(v)
     else:
         fields_to_process = args.fields
+    # Add fields to copy
+    fields_to_copy = []
+    for v in ds.data_vars:
+        if v not in fields_to_process:
+            fields_to_copy.append(v)
 
     # Collect mandatory hybrid-pressure level coefficients
     for field in fields_to_process:
@@ -75,18 +91,19 @@ if __name__ == "__main__":
 
     # Sanity checks -
     # 1) Necessary fields are included in the dataset
-    for field in MANDATORY_FIELDS:
-        if field not in ds.data_vars:
-            raise ValueError("Required field {} wasn't found in dataset {}"
-                             .format(field, args.in_fn))
+    if not args.f_interp:
+        for field in MANDATORY_FIELDS:
+            if field not in ds.data_vars:
+                raise ValueError("Required field {} wasn't found in dataset {}"
+                                 .format(field, args.in_fn))
 
-    # Compute 3D pressure fields on middles/interfaces if necessary
-    logger.debug("Computing 3D pressure field")
-    P0 = ds['P0'] if "P0" in ds.data_vars else 100000.
-    if "hyam" in MANDATORY_FIELDS:
-        pressure_field_m = ma.hybrid_to_pressure(ds, 'm', P0)
-    if "hyai" in MANDATORY_FIELDS:
-        pressure_field_i = ma.hybrid_to_pressure(ds, 'i', P0)
+        # Compute 3D pressure fields on middles/interfaces if necessary
+        logger.debug("Computing 3D pressure field")
+        P0 = ds['P0'] if "P0" in ds.data_vars else 100000.
+        if "hyam" in MANDATORY_FIELDS:
+            pressure_field_m = ma.hybrid_to_pressure(ds, 'm', P0)
+        if "hyai" in MANDATORY_FIELDS:
+            pressure_field_i = ma.hybrid_to_pressure(ds, 'i', P0)
 
     interp_levels = 100.*np.array(args.levels)
 
@@ -103,8 +120,7 @@ if __name__ == "__main__":
                                                   interp_levels, "numpy")
 
         # Copy attrs and set missing value attrs for CDO/NCO/etc
-        # interped_field.attrs['_FillValue'] = np.nan
-        interped_field.attrs['missing_value'] = np.nan
+        interped_field.attrs['_FillValue'] = np.nan
 
         ma.copy_attrs(ds[field], interped_field)
         interp_das[field] = interped_field
@@ -112,6 +128,12 @@ if __name__ == "__main__":
     # Combine into new DataSet
     logger.debug("Combining...")
     new_ds = xr.Dataset(interp_das, attrs=ds.attrs)
+
+    # Copy other fields
+    logger.debug("Copying aux fields...")
+    for field in fields_to_copy:
+        logger.debug("   " + field)
+        new_ds[field] = ds[field]
 
     # Correct CF-compliant vertical dimensions
     if "ilev" in new_ds.dims:
@@ -121,8 +143,14 @@ if __name__ == "__main__":
         new_ds['lev'].attrs['standard_name'] = "pressure"
         new_ds['lev'].attrs['units'] = 'hPa'
 
+    # Remove duplicate missing value field
+    for field in new_ds:
+        if "missing_value" in new_ds[field].attrs:
+            logger.debug("Removing 'missing_value' for {}".format(field))
+            del new_ds[field].attrs['missing_value']
+
     # Append history
-    call_str = __file__ + " ".join(sys.argv[1:])
+    call_str = "{} {}".format(__file__, " ".join(sys.argv[1:]))
     new_ds = ma.append_history(new_ds, call_str)
 
     # Save output file

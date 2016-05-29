@@ -244,7 +244,7 @@ class Experiment(object):
         return self.output_prefix.format(**case_bits)
 
     # Loading methods
-    def load(self, var, fix_times=False, master=False, **case_kws):
+    def load(self, var, fix_times=False, master=False, load_kws={}, **case_kws):
         """ Load a given variable from this experiment's output archive.
 
         Parameters
@@ -263,14 +263,16 @@ class Experiment(object):
 
         """
         if self.timeseries:
-            return self._load_timeseries(var, fix_times, master, **case_kws)
+            return self._load_timeseries(var, fix_times, master, load_kws, **case_kws)
         else:
-            return self._load_timeslice(var, fix_times, master, **case_kws)
+            return self._load_timeslice(var, fix_times, master, load_kws, **case_kws)
 
-    def _load_timeslice(self, var, fix_times=False, master=False, **case_kws):
+    def _load_timeslice(self, var, fix_times=False, master=False, load_kws={},
+                        **case_kws):
         raise NotImplementedError
 
-    def _load_timeseries(self, var, fix_times=False, master=False, **case_kws):
+    def _load_timeseries(self, var, fix_times=False, master=False, load_kws={},
+                         **case_kws):
         """ Load a timeseries dataset directly from the experiment output
         archive.
 
@@ -294,7 +296,7 @@ class Experiment(object):
                 self.case_path(**case_kws),
                 self.case_prefix(**case_kws) + field + self.output_suffix,
             )
-            ds = load_variable(field, path_to_file, fix_times=fix_times)
+            ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
             return ds
         else:
@@ -310,7 +312,7 @@ class Experiment(object):
                     self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
                 data[case_bits] = \
-                    load_variable(field, path_to_file, fix_times=fix_times)
+                    load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
             if is_var:
                 var._data = data
                 var._loaded = True

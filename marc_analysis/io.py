@@ -168,7 +168,7 @@ def load_netcdfs(files, dim='time', transform_func=None, open_kws={}):
 
 
 def load_variable(var_name, path_to_file,
-                  method='xarray', fix_times=True, extr_kwargs={}):
+                  method='xarray', fix_times=True, **extr_kwargs):
     """ Interface for loading an extracted variable into memory, using
     either iris or xarray. If `path_to_file` is instead a raw dataset,
     then the entire contents of the file will be loaded!
@@ -243,6 +243,12 @@ def load_variable(var_name, path_to_file,
 
             ds.time.values = mean_times
 
+        # Be pedantic and check that we don't have a "missing_value" attr
+        for field in ds:
+            if hasattr(ds[field], 'missing_value'):
+                del ds[field].attrs['missing_value']
+            
+            
         # Lazy decode CF
         ds = xarray.decode_cf(ds)
 
