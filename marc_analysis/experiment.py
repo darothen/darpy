@@ -244,7 +244,8 @@ class Experiment(object):
         return self.output_prefix.format(**case_bits)
 
     # Loading methods
-    def load(self, var, fix_times=False, master=False, load_kws={}, **case_kws):
+    def load(self, var, fix_times=False, master=False, preprocess=None, 
+             load_kws={}, **case_kws):
         """ Load a given variable from this experiment's output archive.
 
         Parameters
@@ -257,22 +258,30 @@ class Experiment(object):
         master : logical
             Return a master dataset, with each case defined as a unique
             identifying dimension
+        preprocess : function (optional)
+            Optionally pass a function to be applied to each loaded dataset
+            before it is returned or used to concatenate into a master dataset.
+        load_kws : dict (optional)
+            Additional keywords which will be passed to the timeslice/timeseries
+            loading function.
         case_kws : dict (optional)
             Additional keywords, which will be interpreted as a specific
             case to load from the experiment.
 
         """
         if self.timeseries:
-            return self._load_timeseries(var, fix_times, master, load_kws, **case_kws)
+            return self._load_timeseries(var, fix_times, master, preprocess, 
+                                         load_kws, **case_kws)
         else:
-            return self._load_timeslice(var, fix_times, master, load_kws, **case_kws)
+            return self._load_timeslice(var, fix_times, master, preprocess,
+                                        load_kws, **case_kws)
 
-    def _load_timeslice(self, var, fix_times=False, master=False, load_kws={},
-                        **case_kws):
+    def _load_timeslice(self, var, fix_times=False, master=False, preprocess=None,
+                        load_kws={}, **case_kws):
         raise NotImplementedError
 
-    def _load_timeseries(self, var, fix_times=False, master=False, load_kws={},
-                         **case_kws):
+    def _load_timeseries(self, var, fix_times=False, master=False, preprocess=None, 
+                         load_kws={}, **case_kws):
         """ Load a timeseries dataset directly from the experiment output
         archive.
 
@@ -298,6 +307,9 @@ class Experiment(object):
             )
             ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
+            if preprocess is not None:
+                ds = preprocess(ds)
+
             return ds
         else:
 
@@ -311,8 +323,13 @@ class Experiment(object):
                     self.case_path(*case_bits),
                     self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
-                data[case_bits] = \
-                    load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
+                ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
+
+                if preprocess is not None:
+                    ds = preprocess(ds)
+
+                data[case_bits] = ds
+
             if is_var:
                 var._data = data
                 var._loaded = True
@@ -323,7 +340,7 @@ class Experiment(object):
                 if is_var:
                     var.master = ds_master
 
-                return ds_master
+                data = ds_master
 
             return data
 
