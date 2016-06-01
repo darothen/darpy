@@ -53,7 +53,7 @@ def format_zonal_axis(ax, axis='x', reverse=False):
         elif x > 0:
             label = "{:d}°N".format(x)
         else:
-            label = "{:d}°S".format(x)
+            label = "{:d}°S".format(-x)
         return label
     formatter = mticker.FuncFormatter(_fmt)
     
