@@ -10,6 +10,7 @@ except ImportError:
     warnings.warn("Unable to load geopandas/shapely; ocean shape mask"
                   " not available.")
 import xarray
+import xarray.ufuncs as xu
 from xarray import DataArray, Dataset
 
 # from windspharm.standard import VectorWind
@@ -662,20 +663,16 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
 
     """
 
-    if weights is None:  # Compute gaussian weights in latitude
-        weights = area_grid(data.lon, data.lat)
-        # Saving for later - compute latitudinal weighting
-        # gw = weights.sum('lon')
-        # weights = 2.*gw/gw.sum('lat')
-
     if isinstance(data, DataArray):
 
-        # If there are NaNs, then use individual weights
-        is_nan = data.isnull()
-        if is_nan.any():
-            total_weights = weights.where(~is_nan).sum(dims)
-        else:
-            total_weights = weights.sum(dims)
+        if weights is None:  # Compute gaussian weights in latitude
+            weights = area_grid(data.lon, data.lat)
+            # Saving for later - compute latitudinal weighting
+            # gw = weights.sum('lon')
+            # weights = 2.*gw/gw.sum('lat')
+
+        weights = weights.where(xu.isfinite(data))
+        total_weights = weights.sum(dims)
 
         return (data*weights).sum(dims)/total_weights
 
