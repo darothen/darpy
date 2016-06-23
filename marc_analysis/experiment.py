@@ -225,6 +225,7 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
+
     def case_path(self, *case_bits, **case_kws):
         """ Return the path to a particular set of case's output from this
         experiment.
@@ -244,7 +245,7 @@ class Experiment(object):
         return self.output_prefix.format(**case_bits)
 
     # Loading methods
-    def load(self, var, fix_times=False, master=False, preprocess=None, 
+    def load(self, var, fix_times=False, master=False, preprocess=None,
              load_kws={}, **case_kws):
         """ Load a given variable from this experiment's output archive.
 
@@ -270,7 +271,7 @@ class Experiment(object):
 
         """
         if self.timeseries:
-            return self._load_timeseries(var, fix_times, master, preprocess, 
+            return self._load_timeseries(var, fix_times, master, preprocess,
                                          load_kws, **case_kws)
         else:
             return self._load_timeslice(var, fix_times, master, preprocess,
@@ -280,7 +281,7 @@ class Experiment(object):
                         load_kws={}, **case_kws):
         raise NotImplementedError
 
-    def _load_timeseries(self, var, fix_times=False, master=False, preprocess=None, 
+    def _load_timeseries(self, var, fix_times=False, master=False, preprocess=None,
                          load_kws={}, **case_kws):
         """ Load a timeseries dataset directly from the experiment output
         archive.
@@ -386,6 +387,20 @@ class Experiment(object):
         # Attach to current Experiment
         self.__dict__[var.varname] = var
 
+    @staticmethod
+    def apply_to_all(func, data, *func_args, **func_kws):
+        """ Helper function to quickly apply a function all the datasets
+        in a given collection. """
+        keys = list(data.keys())
+        for key in keys:
+            print(key)
+            if isinstance(data[key], dict):
+                data[key] = apply_to_all(func, data[key],
+                                         *func_args, **func_kws)
+            else:
+                data[key] = func(data[key], *func_args, **func_kws)
+        return data
+
     def __repr__(self):
         base_str = "{} -".format(self.name)
         for case in self._cases:
@@ -394,7 +409,6 @@ class Experiment(object):
                         ", ".join(val for val in self._case_vals[case]) + \
                         "]"
         return base_str
-
 
 class SingleCaseExperiment(Experiment):
     """ Special case of Experiment where only a single model run
