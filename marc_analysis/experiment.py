@@ -33,6 +33,7 @@ leaf factor.
 """
 from __future__ import print_function
 
+import logging
 import os
 import warnings
 from collections import OrderedDict, namedtuple
@@ -42,6 +43,11 @@ from . extract import extract_variable
 from . io import load_variable
 from . convert import create_master
 
+logger = logging.getLogger(__name__)
+# logging.getLogger(__name__).addHandler(NullHandler())
+# logging.basicConfig(level=logging.INFO, format="%(message)s")
+
+
 __all__ = ['Case', 'Experiment', 'SingleCaseExperiment', ]
 
 Case = namedtuple('case', ['shortname', 'longname', 'vals'])
@@ -49,7 +55,6 @@ Case = namedtuple('case', ['shortname', 'longname', 'vals'])
 #: Hack for Py2/3 basestring type compatibility
 if 'basestring' not in globals():
     basestring = str
-
 
 class Experiment(object):
     """ CESM/MARC Experiment details.
@@ -127,6 +132,7 @@ class Experiment(object):
         # Add cases to this instance for "Experiment.[case]" access
         for case, vals in self._case_vals.items():
             setattr(self.__class__, case, vals)
+        self.case_tuple = namedtuple('case', field_names=self._cases)
 
         self.timeseries = timeseries
         self.output_prefix = output_prefix
@@ -225,7 +231,6 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
-
     def case_path(self, *case_bits, **case_kws):
         """ Return the path to a particular set of case's output from this
         experiment.
@@ -306,6 +311,9 @@ class Experiment(object):
                 self.case_path(**case_kws),
                 self.case_prefix(**case_kws) + field + self.output_suffix,
             )
+            logger.debug("{} - loading {} timeseries from {}".format(
+                self.name, field, path_to_file
+            ))
             ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
             if preprocess is not None:
@@ -329,7 +337,7 @@ class Experiment(object):
                 if preprocess is not None:
                     ds = preprocess(ds)
 
-                data[case_bits] = ds
+                data[self.case_tuple(*case_bits)] = ds
 
             if is_var:
                 var._data = data
@@ -388,18 +396,19 @@ class Experiment(object):
         self.__dict__[var.varname] = var
 
     @staticmethod
-    def apply_to_all(func, data, *func_args, **func_kws):
+    def apply_to_all(data, func, func_kws={}, verbose=False):
         """ Helper function to quickly apply a function all the datasets
         in a given collection. """
         keys = list(data.keys())
+        new_data = {}
         for key in keys:
-            print(key)
+            if verbose:
+                print(key)
             if isinstance(data[key], dict):
-                data[key] = apply_to_all(func, data[key],
-                                         *func_args, **func_kws)
+                new_data[key] = apply_to_all(data[key], func, **func_kws)
             else:
-                data[key] = func(data[key], *func_args, **func_kws)
-        return data
+                new_data[key] = func(data[key], **func_kws)
+        return new_data
 
     def __repr__(self):
         base_str = "{} -".format(self.name)
