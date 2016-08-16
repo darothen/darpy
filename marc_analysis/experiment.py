@@ -132,7 +132,7 @@ class Experiment(object):
         self._case_vals = OrderedDict()
         for case in self._cases:
             self._case_vals[case] = self._case_data[case].vals
-        self._casenames = OrderedDict
+        self._casenames = OrderedDict()
         for case in self._cases:
             self._casenames[case] = self._case_data[case].longname
 
@@ -160,10 +160,12 @@ class Experiment(object):
         case layout.
 
         """
-
+        logger.debug("Validating directory")
         root = self.data_dir
         for path in self._walk_cases():
+            print(path)
             full_path = os.path.join(root, path)
+            logger.debug("   " + full_path)
             try:
                 assert os.path.exists(full_path)
             except AssertionError:
@@ -178,13 +180,11 @@ class Experiment(object):
         root = self.data_dir
 
         path_bits = self.all_cases()
-        path_kws = self.cases()
-
-        # Check that the length of each set of path bits is equal to the
-        # number of case keywords
-        assert len(path_bits[0]) == len(path_kws)
+        path_kws = self.cases
 
         for bits in path_bits:
+            assert len(bits) == len(path_kws)
+
             case_kws = OrderedDict()
             for kw, bit in zip(path_kws, bits):
                 case_kws[kw] = bit
@@ -262,13 +262,12 @@ class Experiment(object):
         experiment, relative to this Experiment's data_dir.
 
         """
-
         if self.case_path is None:
             # Combine in the order that the cases were provided
             bits = [case_kws[case] for case in self._cases]
             return os.path.join(bits)
         else:
-            return self.case_path.format(case_kws)
+            return self.case_path.format(**case_kws)
 
     def case_prefix(self, **case_bits):
         """ Return the output prefix for a given case. """
