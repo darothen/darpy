@@ -257,19 +257,17 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
-    def get_case_path(self, *case_bits, **case_kws):
+    def get_case_path(self, **case_kws):
         """ Return the path to a particular set of case's output from this
-        experiment.
+        experiment, relative to this Experiment's data_dir.
 
         """
-        if case_kws:
-            # Re-assemble into ordered bits
-            case_bits = self.get_case_bits(**case_kws)
-            return os.path.join(self.data_dir, *case_bits)
-        elif case_bits:
-            return os.path.join(self.data_dir, *case_bits)
+
+        if self.case_path is None:
+            bits = [case_kws[case] for case in self._cases]
+            return os.path.join(bits)
         else:
-            raise ValueError("Expected either a list or dict of case values")
+            return self.case_path.format(case_kws)
 
     def case_prefix(self, **case_bits):
         """ Return the output prefix for a given case. """
