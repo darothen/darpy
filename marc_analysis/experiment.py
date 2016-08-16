@@ -79,7 +79,7 @@ class Experiment(object):
     def __init__(self, name, cases,
                  timeseries=False,
                  data_dir='./',
-                 full_path=False,
+                 case_path=None,
                  output_prefix="",
                  output_suffix=".nc",
                  validate_data=True):
@@ -99,10 +99,12 @@ class Experiment(object):
         cases : str or list
         data_dir : str
             Path to directory containing the unanalyzed data for this experiment
-        full_path : bool
-            Indicates whether the data directory structure leads immediately
-            to a folder containing the output data (if `False`) or to the
-            hierarchical structure output by CESM/MARC by default
+        case_path : str (optional)
+            An optional template for the structure of the folder hierarchy in
+            data_dir. If nothing is supplied, then the Experiment will
+            automatically infer the hierarchy based on the order of cases. Else,
+            you can supply a string with named format directives indicating the
+            case bits to use
         output_prefix : str
             Global prefix for all output files as a string, which can optionally
             include named format directives indicated which case bit to supply
@@ -114,7 +116,7 @@ class Experiment(object):
         """
 
         self.name = name
-        self.full_path = full_path
+        self.case_path = case_path
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()
@@ -127,8 +129,13 @@ class Experiment(object):
 
         # Mapping to private information on case data
         self._cases = list(self._case_data.keys())
-        self._case_vals = {case: self._case_data[case].vals for case in self._cases}
-        self._casenames = {case: self._case_data[case].longname for case in self._cases}
+        self._case_vals = OrderedDict()
+        for case in self._cases:
+            self._case_vals[case] = self._case_data[case].vals
+        self._casenames = OrderedDict()
+        for case in self._cases:
+            self._casenames[case] = self._case_data[case].longname
+
         # Add cases to this instance for "Experiment.[case]" access
         for case, vals in self._case_vals.items():
             setattr(self.__class__, case, vals)
@@ -153,16 +160,35 @@ class Experiment(object):
         case layout.
 
         """
+        logger.debug("Validating directory")
+        root = self.data_dir
+        for path in self._walk_cases():
+            print(path)
+            full_path = os.path.join(root, path)
+            logger.debug("   " + full_path)
+            try:
+                assert os.path.exists(full_path)
+            except AssertionError:
+                raise AssertionError(
+                    "Couldn't find data on path {}".format(full_path)
+                )
+
+    def _walk_cases(self):
+        """ Walk the Experiment case structure and generate paths to
+        every single case. """
 
         root = self.data_dir
 
         path_bits = self.all_cases()
+        path_kws = self.cases
+
         for bits in path_bits:
-            full_path = os.path.join(root, *bits)
-            try:
-                assert os.path.exists(full_path)
-            except AssertionError:
-                raise AssertionError("Couldn't find data on path {}".format(full_path))
+            assert len(bits) == len(path_kws)
+
+            case_kws = OrderedDict()
+            for kw, bit in zip(path_kws, bits):
+                case_kws[kw] = bit
+            yield self.get_case_path(**case_kws)
 
     # Properties and accessors
     @property
@@ -231,19 +257,17 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
-    def case_path(self, *case_bits, **case_kws):
+    def get_case_path(self, **case_kws):
         """ Return the path to a particular set of case's output from this
-        experiment.
+        experiment, relative to this Experiment's data_dir.
 
         """
-        if case_kws:
-            # Re-assemble into ordered bits
-            case_bits = self.get_case_bits(**case_kws)
-            return os.path.join(self.data_dir, *case_bits)
-        elif case_bits:
-            return os.path.join(self.data_dir, *case_bits)
+        if self.case_path is None:
+            # Combine in the order that the cases were provided
+            bits = [case_kws[case] for case in self._cases]
+            return os.path.join(*bits)
         else:
-            raise ValueError("Expected either a list or dict of case values")
+            return self.case_path.format(**case_kws)
 
     def case_prefix(self, **case_bits):
         """ Return the output prefix for a given case. """
@@ -308,7 +332,8 @@ class Experiment(object):
             prefix = self.case_prefix(**case_kws)
 
             path_to_file = os.path.join(
-                self.case_path(**case_kws),
+                self.data_dir,
+                self.get_case_path(**case_kws),
                 self.case_prefix(**case_kws) + field + self.output_suffix,
             )
             logger.debug("{} - loading {} timeseries from {}".format(
@@ -329,7 +354,8 @@ class Experiment(object):
                 case_kws = self.get_case_kws(*case_bits)
 
                 path_to_file = os.path.join(
-                    self.case_path(*case_bits),
+                    self.data_dir,
+                    self.get_case_path(**case_kws),
                     self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
                 ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
@@ -437,8 +463,8 @@ class SingleCaseExperiment(Experiment):
         super(self.__class__, self).__init__(name, cases, validate_data=False,
                                              **kwargs)
 
-    def case_path(self, *args):
-        """ Overridden case_path() method which simply returns the
+    def get_case_path(self, *args):
+        """ Overridden get_case_path() method which simply returns the
         data_dir, since that's where the data is held.
 
         """
