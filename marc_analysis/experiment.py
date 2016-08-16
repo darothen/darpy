@@ -171,6 +171,25 @@ class Experiment(object):
             except AssertionError:
                 raise AssertionError("Couldn't find data on path {}".format(full_path))
 
+    def _walk_cases(self):
+        """ Walk the Experiment case structure and generate paths to
+        every single case. """
+
+        root = self.data_dir
+
+        path_bits = self.all_cases()
+        path_kws = self.cases()
+
+        # Check that the length of each set of path bits is equal to the
+        # number of case keywords
+        assert len(path_bits[0]) == len(path_kws)
+
+        for bits in path_bits:
+            case_kws = OrderedDict()
+            for kw, bit in zip(path_kws, bits):
+                case_kws[kw] = bit
+            yield self.get_case_path(**case_kws)
+
     # Properties and accessors
     @property
     def cases(self):
@@ -238,7 +257,7 @@ class Experiment(object):
         """ Return the given case bits as a dictionary. """
         return {name: val for name, val in zip(self.cases, case_bits)}
 
-    def case_path(self, *case_bits, **case_kws):
+    def get_case_path(self, *case_bits, **case_kws):
         """ Return the path to a particular set of case's output from this
         experiment.
 
@@ -315,7 +334,7 @@ class Experiment(object):
             prefix = self.case_prefix(**case_kws)
 
             path_to_file = os.path.join(
-                self.case_path(**case_kws),
+                self.get_case_path(**case_kws),
                 self.case_prefix(**case_kws) + field + self.output_suffix,
             )
             logger.debug("{} - loading {} timeseries from {}".format(
@@ -336,7 +355,7 @@ class Experiment(object):
                 case_kws = self.get_case_kws(*case_bits)
 
                 path_to_file = os.path.join(
-                    self.case_path(*case_bits),
+                    self.get_case_path(*case_bits),
                     self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
                 ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
@@ -444,8 +463,8 @@ class SingleCaseExperiment(Experiment):
         super(self.__class__, self).__init__(name, cases, validate_data=False,
                                              **kwargs)
 
-    def case_path(self, *args):
-        """ Overridden case_path() method which simply returns the
+    def get_case_path(self, *args):
+        """ Overridden get_case_path() method which simply returns the
         data_dir, since that's where the data is held.
 
         """

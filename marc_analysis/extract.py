@@ -101,7 +101,7 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
         case_fn_comb = "_".join(case_bits)
         fn_extr = "%s_%s_monthly.nc" % (case_fn_comb, var.varname)
 
-        path_to_data = os.path.join(exp.case_path(*case_bits))
+        path_to_data = os.path.join(exp.get_case_path(*case_bits))
         if exp.full_path:
             path_to_data = os.path.join(path_to_data, "atm", "hist")
 
