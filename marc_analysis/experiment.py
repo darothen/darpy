@@ -162,14 +162,15 @@ class Experiment(object):
         """
 
         root = self.data_dir
-
-        path_bits = self.all_cases()
-        for bits in path_bits:
-            full_path = os.path.join(root, *bits)
+        for path in self._walk_cases():
+            full_path = os.path.join(root, path)
             try:
                 assert os.path.exists(full_path)
             except AssertionError:
-                raise AssertionError("Couldn't find data on path {}".format(full_path))
+                raise AssertionError(
+                    "Couldn't find data on path {}".format(full_path)
+                )
+
 
     def _walk_cases(self):
         """ Walk the Experiment case structure and generate paths to
@@ -264,6 +265,7 @@ class Experiment(object):
         """
 
         if self.case_path is None:
+            # Combine in the order that the cases were provided
             bits = [case_kws[case] for case in self._cases]
             return os.path.join(bits)
         else:
@@ -319,6 +321,8 @@ class Experiment(object):
         --------
         Experiment.load : sentinel for loading data
         """
+
+        # TODO: Adjust to use _walk_cases
 
         is_var = not isinstance(var, basestring)
         if is_var:
