@@ -265,7 +265,7 @@ class Experiment(object):
         if self.case_path is None:
             # Combine in the order that the cases were provided
             bits = [case_kws[case] for case in self._cases]
-            return os.path.join(bits)
+            return os.path.join(*bits)
         else:
             return self.case_path.format(**case_kws)
 
