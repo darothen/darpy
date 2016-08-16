@@ -79,7 +79,7 @@ class Experiment(object):
     def __init__(self, name, cases,
                  timeseries=False,
                  data_dir='./',
-                 full_path=False,
+                 case_path=None,
                  output_prefix="",
                  output_suffix=".nc",
                  validate_data=True):
@@ -99,10 +99,12 @@ class Experiment(object):
         cases : str or list
         data_dir : str
             Path to directory containing the unanalyzed data for this experiment
-        full_path : bool
-            Indicates whether the data directory structure leads immediately
-            to a folder containing the output data (if `False`) or to the
-            hierarchical structure output by CESM/MARC by default
+        case_path : str (optional)
+            An optional template for the structure of the folder hierarchy in
+            data_dir. If nothing is supplied, then the Experiment will
+            automatically infer the hierarchy based on the order of cases. Else,
+            you can supply a string with named format directives indicating the
+            case bits to use
         output_prefix : str
             Global prefix for all output files as a string, which can optionally
             include named format directives indicated which case bit to supply
@@ -114,7 +116,7 @@ class Experiment(object):
         """
 
         self.name = name
-        self.full_path = full_path
+        self.case_path = case_path
 
         # Process the case data, which is an Iterable of Cases
         self._case_data = OrderedDict()
@@ -127,8 +129,13 @@ class Experiment(object):
 
         # Mapping to private information on case data
         self._cases = list(self._case_data.keys())
-        self._case_vals = {case: self._case_data[case].vals for case in self._cases}
-        self._casenames = {case: self._case_data[case].longname for case in self._cases}
+        self._case_vals = OrderedDict()
+        for case in self._cases:
+            self._case_vals[case] = self._case_data[case].vals
+        self._casenames = OrderedDict
+        for case in self._cases:
+            self._casenames[case] = self._case_data[case].longname
+
         # Add cases to this instance for "Experiment.[case]" access
         for case, vals in self._case_vals.items():
             setattr(self.__class__, case, vals)
