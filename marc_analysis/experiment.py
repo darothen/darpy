@@ -171,7 +171,6 @@ class Experiment(object):
                     "Couldn't find data on path {}".format(full_path)
                 )
 
-
     def _walk_cases(self):
         """ Walk the Experiment case structure and generate paths to
         every single case. """
@@ -322,8 +321,6 @@ class Experiment(object):
         Experiment.load : sentinel for loading data
         """
 
-        # TODO: Adjust to use _walk_cases
-
         is_var = not isinstance(var, basestring)
         if is_var:
             field = var.varname
@@ -336,6 +333,7 @@ class Experiment(object):
             prefix = self.case_prefix(**case_kws)
 
             path_to_file = os.path.join(
+                self.data_dir,
                 self.get_case_path(**case_kws),
                 self.case_prefix(**case_kws) + field + self.output_suffix,
             )
@@ -357,7 +355,8 @@ class Experiment(object):
                 case_kws = self.get_case_kws(*case_bits)
 
                 path_to_file = os.path.join(
-                    self.get_case_path(*case_bits),
+                    self.data_dir,
+                    self.get_case_path(**case_kws),
                     self.case_prefix(**case_kws) + field + self.output_suffix,
                 )
                 ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
