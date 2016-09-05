@@ -129,7 +129,7 @@ def extract_Quaas_region(ds, region):
         raise RuntimeError("Couldn't load 'quaas_regions' resource")
 
     mask = (_QUAAS_REGIONS['reg'] == Quass_region_names[region])
-    return ds.where(mask)
+    return ds.where(mask, drop=True)
 
 
 #################################

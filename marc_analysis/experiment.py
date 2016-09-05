@@ -421,6 +421,29 @@ class Experiment(object):
         # Attach to current Experiment
         self.__dict__[var.varname] = var
 
+    def create_master(self, var, data=None, **kwargs):
+        """ Convenience function to create a master dataset for a 
+        given experiment.
+
+        Parameters
+        ----------
+        var : Var or str
+            A Var object containing the information about the variable
+            being processed or a string indicating its name for inference
+            when creating the master dataset
+        data : dict (optional, unless var is a string)
+            Dictionary of dictionaries/dataset containing the variable data
+            to be collected into a master dataset
+
+        Returns
+        -------
+        A Dataset with all the data, collapsed onto additional dimensions
+        for each case in the Experiment.
+
+        """
+        return create_master(self, var, data, **kwargs)
+
+
     @staticmethod
     def apply_to_all(data, func, func_kws={}, verbose=False):
         """ Helper function to quickly apply a function all the datasets
