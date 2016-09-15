@@ -38,6 +38,8 @@ import os
 import warnings
 from collections import OrderedDict, namedtuple
 from itertools import product
+import numpy as np
+import xarray as xr
 
 from . extract import extract_variable
 from . io import load_variable
@@ -353,17 +355,21 @@ class Experiment(object):
             for case_bits in self.all_cases():
                 case_kws = self.get_case_kws(*case_bits)
 
-                path_to_file = os.path.join(
-                    self.data_dir,
-                    self.get_case_path(**case_kws),
-                    self.case_prefix(**case_kws) + field + self.output_suffix,
-                )
-                ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
+                try:
+                    path_to_file = os.path.join(
+                        self.data_dir,
+                        self.get_case_path(**case_kws),
+                        self.case_prefix(**case_kws) + field + self.output_suffix,
+                    )
+                    ds = load_variable(field, path_to_file, fix_times=fix_times, **load_kws)
 
-                if preprocess is not None:
-                    ds = preprocess(ds)
-
-                data[self.case_tuple(*case_bits)] = ds
+                    if preprocess is not None:
+                        ds = preprocess(ds)
+                        
+                    data[self.case_tuple(*case_bits)] = ds
+                except:
+                    logger.warn("Could not load case %r" % case_kws)
+                    data[self.case_tuple(*case_bits)] = xr.Dataset({field: np.nan})
 
             if is_var:
                 var._data = data

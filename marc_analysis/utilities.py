@@ -259,9 +259,11 @@ def shuffle_dims(d, first_dims='lev'):
 
 def shift_lons(lons):
     """ Shift longitudes from [0, 360] to [-180, 10] """
+    new_lons = lons.copy()
     mask = lons > 180
-    lons[mask] = -(360. - lons[mask])
-    return lons
+    new_lons[mask] = -(360. - lons[mask])
+    new_lons[~mask] = lons[~mask]
+    return new_lons
 
 
 def area_grid(lon, lat, asarray=False):
