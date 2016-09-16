@@ -15,12 +15,14 @@ import numpy as np
 import xarray
 from xarray import DataArray, Dataset
 
-from . utilities import shift_lons
+from . utilities import shift_lons, shuffle_dims
 
+_LANDSEA_MASK = None
 _MASKS = None
 _OCEAN_SHAPE = None
 _QUAAS_REGIONS = None
 
+__all__ = ['_load_resource_nc', 'landsea_mask']
 
 def _load_resource_nc(name, resource=None):
     """ Load a named netCDF resource file. """
@@ -78,6 +80,85 @@ def extract_feature(ds, feature='ocean'):
     mask = (_MASKS['ORO'] == _FEATURE_MAP[feature])
     return ds.where(mask)
 
+
+## Generalized landsea masks
+# NCL has a contributed function, "landsea_mask", which takes an arbitrary
+# lat-lon grid system and provides masks. It works by essentially performing a look-up
+# of the provided gridpoints on a 1-degree grid reference dataset. But, it's
+# very fast and convenient.
+def landsea_mask(ds, feature='ocean'):
+    """ Generate a lat-lon land-vs-sea mask for the lat-lon coordinate system
+    in an arbitrary DataSet.
+
+    This function cribs heavily from an NCL function -
+        http://www.ncl.ucar.edu/Document/Functions/Shea_util/landsea_mask.shtml
+
+    Instead of doing any sort of interpolation or re-gridding, we do a naive
+    lookup of each grid-cell's coordinate on a 1-degree reference dataset
+    where the masks have been pre-computed. However, this should generalize to
+    an arbitrary grid.
+
+    This routine expects that the latitude and longitude in your dataset obey
+    certain conditions:
+
+    1) lat: monotonically increasing from -90 to 90 (EQ at 0)
+    2) lon: monotonically increasing from 0 to 360 (PM at 0)
+
+    Parameters
+    ----------
+    ds : Dataset
+        The Dataset to compute the mask for
+    feature : str
+        A string indicating either "land" or "ocean".
+
+    Returns
+    -------
+    DataArray 
+
+    """
+
+    global _LANDSEA_MASK
+
+    # Check to see if resource is loaded
+    if _LANDSEA_MASK is None:
+        _LANDSEA_MASK = _load_resource_nc("landsea")
+    if _LANDSEA_MASK is None:  # still?!? Something terrible happened...
+        raise RuntimeError("Couldn't load 'landsea' resource")
+
+    feature_map = {
+        'ocean': 0, 'land': 1
+    }
+    if feature not in feature_map.keys():
+        raise ValueError("Unknown 'feature' provided to mask lookup")
+
+    # Copy the coordinate system from your original Dataset
+    lon1d = ds.lon.values.copy()
+    lat1d = ds.lat.values.copy()
+    orig_coords = [lon1d.copy(), lat1d.copy()]
+    
+    # Correct dimensions - eliminate > 360 longitudes, shift lats to (0, 180)
+    lon1d[lon1d < 0] = lon1d[lon1d < 0] + 360.
+    lat1d = ds.lat.values + 90.
+
+    # Construct a 2D grid for the original coordinate system and chop to 
+    # integers (which approximate indices on a 180x360 grid)
+    lat2d, lon2d = np.meshgrid(lat1d, lon1d)
+    lat2d = lat2d.astype(int)
+    lon2d = lon2d.astype(int)
+
+    # Correct edge/loop indices
+    lat2d[lat2d < 0] = 0
+    lat2d[lat2d > 179] = 179
+    lon2d[lon2d >= 360] = 0
+
+    # Construct mask. Our reference landsea dataset has coordinates in the order
+    # (lat, lon), so we need to be careful about the order in which we constructed
+    # and will now pass the indices for masking
+    mask_raw = _LANDSEA_MASK['LSMASK'].data[[lat2d, lon2d]] == feature_map[feature]
+    mask_da = DataArray(mask_raw, coords=orig_coords, dims=['lon', 'lat'])
+    
+    return mask_da
+    
 
 #################################
 # Quaas regional analysis
