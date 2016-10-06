@@ -258,7 +258,7 @@ def shuffle_dims(d, first_dims='lev'):
 
 
 def shift_lons(lons):
-    """ Shift longitudes from [0, 360] to [-180, 10] """
+    """ Shift longitudes from [0, 360] to [-180, 180] """
     new_lons = lons.copy()
     mask = lons > 180
     new_lons[mask] = -(360. - lons[mask])
