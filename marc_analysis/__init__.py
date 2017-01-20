@@ -1,7 +1,5 @@
-"""
-A package for analzying an aerosol-indirect effect
-experiment with different activation parameterizations
-in the CESM-MARC.
+""" A library archiving the many calculations, helper routines, or other
+utilities I've developed for working with climate data.
 
 """
 
@@ -12,7 +10,6 @@ from __future__ import absolute_import, division
 # from . case_setup import *
 from . analysis import *
 from . convert import *
-from . experiment import *
 from . extract import *
 from . io import *
 from . regions import *
