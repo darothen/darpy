@@ -15,7 +15,6 @@ from . io import *
 from . regions import *
 from . scripting import *
 from . utilities import *
-from . var import *
 
 try:
     from . import plot

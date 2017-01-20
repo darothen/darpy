@@ -3,64 +3,15 @@
 
 from itertools import product
 import warnings
-try:
-    from cartopy.util import add_cyclic_point
-except ImportError:
-    warnings.warn("cartopy not found!")
 
 from numpy import empty, nditer
 from xarray import DataArray, Dataset
 
-__all__ = [ 'cyclic_dataarray', 'create_master', 'dataset_to_cube', ]
+__all__ = ['dataset_to_cube', ]
 
 #: Hack for Py2/3 basestring type compatibility
 if 'basestring' not in globals():
     basestring = str
-
-
-def cyclic_dataarray(da, coord='lon'):
-    """ Add a cyclic coordinate point to a DataArray along a specified
-    named coordinate dimension.
-
-    >>> from xarray import DataArray
-    >>> data = DataArray([[1, 2, 3], [4, 5, 6]],
-    ...                      coords={'x': [1, 2], 'y': range(3)},
-    ...                      dims=['x', 'y'])
-    >>> cd = cyclic_dataarray(data, 'y')
-    >>> print cd.data
-    array([[1, 2, 3, 1],
-           [4, 5, 6, 4]])
-
-    Parameters
-    ----------
-    da : DataArray
-        The data to wrap with a cyclic point
-    coord : str
-        Coordinate to wrap; defaults to 'lon'
-
-    """
-    assert isinstance(da, DataArray)
-
-    lon_idx = da.dims.index(coord)
-    cyclic_data, cyclic_coord = add_cyclic_point(da.values,
-                                                 coord=da.coords[coord],
-                                                 axis=lon_idx)
-
-    # Copy and add the cyclic coordinate and data
-    new_coords = dict(da.coords)
-    new_coords[coord] = cyclic_coord
-    new_values = cyclic_data
-
-    new_da = DataArray(new_values, dims=da.dims, coords=new_coords)
-
-    # Copy the attributes for the re-constructed data and coords
-    for att, val in da.attrs.items():
-        new_da.attrs[att] = val
-    for c in da.coords:
-        for att in da.coords[c].attrs:
-            new_da.coords[c].attrs[att] = da.coords[c].attrs[att]
-
-    return new_da
 
 def dataset_to_cube(ds, field):
     """ Construct an iris Cube from a field of a given

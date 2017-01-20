@@ -11,28 +11,10 @@ from subprocess import call, check_output
 import numpy as np
 from xarray import DataArray, Dataset
 
-## DATA REFERENCE
-mode_colors = {
-    # Sulfate - red
-    'NUC': '#fee0d2',
-    'AIT': '#fc9272',
-    'ACC': '#ef3b2c',
-    # Organic - green
-    'OC': '#4daf4a',
-    'MOS': '#ffff33', # green + red = yellow
-    # Black - blue,
-    'BC': '#377eb8',
-    'MBS': '#984ea3', # blue + red = purple
-    # Dust - shades of brown
-    'DST01': '#f6e8c3', 'DST02': '#dfc27d',
-    'DST03': '#bf812d', 'DST04': '#8c510a',
-    # Sea Salt - shades of teal
-    'SSLT01': '#c7eae5', 'SSLT02': '#80cdc1',
-    'SSLT03': '#35978f', 'SSLT04': '#01665e',
-}
-all_modes = ['NUC', 'AIT', 'ACC', 'OC', 'MOS', 'BC', 'MBS',
-             'DST01', 'DST02', 'DST03', 'DST04',
-             'SSLT01', 'SSLT02', 'SSLT03', 'SSLT04', ]
+try:
+    from cartopy.util import add_cyclic_point
+except ImportError:
+    warnings.warn("cartopy not found!")
 
 #####################################################################
 ## VERSIONING FUNCTIONS
@@ -254,8 +236,51 @@ def shuffle_dims(d, first_dims='lev'):
 #     return data
 
 ################################################################
-## OTHER ANALYSIS FUNCTIONS
+## OTHER GEO MODIFICATION FUNCTIONS
 
+def cyclic_dataarray(da, coord='lon'):
+    """ Add a cyclic coordinate point to a DataArray along a specified
+    named coordinate dimension.
+
+    >>> from xarray import DataArray
+    >>> data = DataArray([[1, 2, 3], [4, 5, 6]],
+    ...                      coords={'x': [1, 2], 'y': range(3)},
+    ...                      dims=['x', 'y'])
+    >>> cd = cyclic_dataarray(data, 'y')
+    >>> print cd.data
+    array([[1, 2, 3, 1],
+           [4, 5, 6, 4]])
+
+    Parameters
+    ----------
+    da : DataArray
+        The data to wrap with a cyclic point
+    coord : str
+        Coordinate to wrap; defaults to 'lon'
+
+    """
+    assert isinstance(da, DataArray)
+
+    lon_idx = da.dims.index(coord)
+    cyclic_data, cyclic_coord = add_cyclic_point(da.values,
+                                                 coord=da.coords[coord],
+                                                 axis=lon_idx)
+
+    # Copy and add the cyclic coordinate and data
+    new_coords = dict(da.coords)
+    new_coords[coord] = cyclic_coord
+    new_values = cyclic_data
+
+    new_da = DataArray(new_values, dims=da.dims, coords=new_coords)
+
+    # Copy the attributes for the re-constructed data and coords
+    for att, val in da.attrs.items():
+        new_da.attrs[att] = val
+    for c in da.coords:
+        for att in da.coords[c].attrs:
+            new_da.coords[c].attrs[att] = da.coords[c].attrs[att]
+
+    return new_da
 
 def shift_lons(lons):
     """ Shift longitudes from [0, 360] to [-180, 180] """
