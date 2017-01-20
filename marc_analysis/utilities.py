@@ -204,6 +204,30 @@ def shuffle_dims(d, first_dims='lev'):
         dims.insert(i, dims.pop(dims.index(dim)))
     return d.transpose(*dims)
 
+
+def logged_apply(g, func, *args, **kwargs):
+    """ Helper decorator factory to print a mini progressbar during
+    lengthy split-apply-combine operations. """
+    step_percentage = 100. / len(g)
+    sys.stdout.write('apply:{} progress:   0%'.format(func.__name__))
+    sys.stdout.flush()
+
+    def logging_decorator(func):
+        def wrapper(*args, **kwargs):
+            progress = wrapper.count * step_percentage
+            sys.stdout.write('\033[D \033[D' * 4 + format(progress, '3.0f') + '%')
+            sys.stdout.flush()
+            wrapper.count += 1
+            return func(*args, **kwargs)
+        wrapper.count = 0
+        return wrapper
+
+    logged_func = logging_decorator(func)
+    res = g.apply(logged_func, *args, **kwargs)
+    sys.stdout.write('\033[D \033[D' * 4 + format(100., '3.0f') + '%' + '\n')
+    sys.stdout.flush()
+    return res
+
 ################################################################
 ## IRIS CUBE FUNCTIONS
 

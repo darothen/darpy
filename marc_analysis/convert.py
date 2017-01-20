@@ -5,6 +5,7 @@ from itertools import product
 import warnings
 
 from numpy import empty, nditer
+import pandas as pd
 from xarray import DataArray, Dataset
 
 __all__ = ['dataset_to_cube', ]
@@ -12,6 +13,15 @@ __all__ = ['dataset_to_cube', ]
 #: Hack for Py2/3 basestring type compatibility
 if 'basestring' not in globals():
     basestring = str
+
+
+def make_df_efficient(ds):
+    """ Efficiently collapse a Dataset into a DataFrame """
+    data = {}
+    for v in ds.data_vars:
+        data[v] = ds[v].to_pandas()
+    return pd.DataFrame(data)
+
 
 def dataset_to_cube(ds, field):
     """ Construct an iris Cube from a field of a given

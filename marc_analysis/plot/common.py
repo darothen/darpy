@@ -16,14 +16,41 @@ import xarray
 
 from textwrap import wrap
 
-from .. convert import cyclic_dataarray
+from .. utilities import cyclic_dataarray
+from .. analysis import global_avg
 
 
 PLOTTYPE_ARGS = {
     'pcolormesh': dict(linewidth='0'),
     'pcolor': dict(linewidth='0'),
     'contourf': dict(extend='both'),
+    'imshow': dict(),
 }
+
+#: Default projection settings
+PROJECTION = get_projection("PlateCarree", central_longitude=0.)
+TRANSFORM = get_projection("PlateCarree")
+SUBPLOT_KWS = dict(projection=projection, aspect='auto')
+LAT_TICKS = [-90, -60, -30, 0, 30, 60, 90]
+LON_TICKS = [-150, -90, -30, 30, 90, 150]
+TICK_STYLE = {'size': 12}
+GRID_STYLE = dict(linewidth=0.5, color='grey', alpha=0.3)
+
+
+def get_figsize(nrows=1, ncols=1, size=4., aspect=16./10.):
+    """ Compute figure size tuple given columns, rows, size, and aspect. """
+    width = ncols*size*aspect
+    height = nrows*size
+    return (width, height)
+
+
+def set_ytickformat(ax, fmt="%.4g"):
+    """ Change y-axis tick format to use a more flexible notation. """
+    yax = ax.get_yaxis()
+    yax.set_major_formatter(
+        mticker.FormatStrFormatter(fmt)
+    )
+    return ax
 
 
 def format_zonal_axis(ax, axis='x', reverse=False):
@@ -56,7 +83,7 @@ def format_zonal_axis(ax, axis='x', reverse=False):
             label = "{:d}°S".format(-x)
         return label
     formatter = mticker.FuncFormatter(_fmt)
-    
+
     if reverse:
         lims = lims[::-1]
         ticks = ticks[::-1]
@@ -79,6 +106,132 @@ def format_zonal_axis(ax, axis='x', reverse=False):
     return ax
 
 
+def label_lon(ax, axis='x', transform=TRANSFORM):
+    """ Label longitudes on a plot. """
+    gl = ax.gridlines(crs=transform, draw_labels=True, **GRID_STYLE)
+    if axis == 'x':
+        gl.xlabels_top = gl.ylabels_left = gl.ylabels_right = False
+        gl.xlocator = mticker.FixedLocator(LON_TICKS)
+        gl.xformatter = maplt.LONGITUDE_FORMATTER
+        gl.xlabel_style = TICK_STYLE
+    else:
+        gl.xlabels_top = gl.xlabels_bottom = gl.ylabels_right = False
+        gl.ylocator = mticker.FixedLocator(LON_TICKS)
+        gl.yformatter = maplt.LONGITUDE_FORMATTER
+        gl.ylabel_style = TICK_STYLE
+
+    return ax
+
+
+def label_lat(ax, axis='y', transform=transform):
+    """ Label latitudes on a plot. """
+    gl = ax.gridlines(crs=transform, draw_labels=True, **GRID_STYLE)
+    if axis == 'y':
+        gl.xlabels_top = gl.xlabels_bottom = gl.ylabels_right = False
+        gl.ylocator = mticker.FixedLocator(LAT_TICKS)
+        gl.yformatter = maplt.LATITUDE_FORMATTER
+        gl.ylabel_style = TICK_STYLE
+    else:
+        gl.xlabels_top = gl.ylabels_left = gl.ylabels_right = False
+        gl.xlocator = mticker.FixedLocator(LAT_TICKS)
+        gl.xformatter = maplt.LATITUDE_FORMATTER
+        gl.xlabel_style = TICK_STYLE
+
+    return ax
+
+
+def label_global_avg(g):
+    """ Label global field avg in a box for a FacetGrid of plots. """
+    print("Global averages")
+    print("---------------")
+    for ax, name_dict in zip(g.axes.flat, g.name_dicts.flat):
+        if name_dict is None:
+            continue
+
+        d = g.data.loc[name_dict]
+        avg = global_avg(d)
+        avg = float(avg.data)
+
+        # Convert to TeX scientific notation if exponential
+        avg_str = "{:3.2g}".format(avg)
+        if "e" in avg_str:
+            coeff, exp = avg_str.split("e")
+            exp = int(exp)
+            avg_str = "{}x10".format(coeff) + "$^{%d}$" % exp
+        s = "{} {}".format(avg_str, d.units)
+
+        xl = ax.get_xlim()
+        yl = ax.get_ylim()
+        ax.text(xl[-1] - 5, yl[-1] - 15, s,
+                size=11, ha='right',
+                bbox=dict(facecolor='white', alpha=0.8))
+        print("   ", name_dict, s, avg)
+
+    return g
+
+
+def geo_grid_plot(data, x, y, col=None, row=None, col_wrap=None,
+                  label_grid=True, label_avg=True, **kws):
+
+    plot_kws = {}
+    if (col is not None) or (row is not None):
+        plot_kws.update(dict(aspect=16./10., size=3.))
+    plot_kws.update(kws)
+
+    g = data.plot.imshow(x=x, y=y, row=row, col=col, col_wrap=col_wrap,
+                         subplot_kws=subplot_kws, **plot_kws)
+    if label_grid:
+        # try:
+        g = geo_prettify(g, transform=transform)
+        # except TypeError:
+        #     pass
+    if label_avg:
+        g = label_global_avg(g)
+
+    plt.draw()
+
+    return g
+
+
+def geo_prettify(g, transform):
+    """ Make longitude-latitude labels and grid for a FacetGrid of
+    horizontal plots. """
+    # TODO: Just iterate over axes and apply geo_prettify_ax()
+    for ax in g.axes.flat:
+        ax.coastlines()
+        gl = ax.gridlines(crs=transform, **GRID_STYLE)
+    # Bottom Row
+    for ax in g._bottom_axes:
+        ax = label_lon(ax, transform=transform)
+    # Left column
+    for ax in g._left_axes:
+        ax = label_lat(ax, transform=transform)
+
+    # Over-ride the default titles
+    # TODO: This doesn't work because FacetGrid sets the right-hand column
+    #       y-labels using annotate, so they're hard to remove. Will need to
+    #       hack the xarray interface for this to work.
+    # for ax, row_name in zip(g.axes[:, -1], g.row_names):
+    #     ax.set_title(row_name, loc='right')
+    # for ax, col_name in zip(g.axes[0, :], g.col_names):
+    #     ax.set_title(col_name, loc='left')
+
+    return g
+
+
+def geo_prettify_ax(ax, transform=Transform, label_x=True, label_y=True):
+    """ Make longitude-latitude labels for a single plot. """
+
+    ax.coastlines()
+    gl = ax.gridlines(crs=transform, **GRID_STYLE)
+    if label_x:
+        ax = label_lon(ax, transform=transform)
+    if label_y:
+        ax = label_lat(ax, transform=transform)
+
+    return ax
+
+
 def make_geoaxes(projection='PlateCarree', proj_kws={}):
     """ Create a GeoAxes mapping object.
 
@@ -87,7 +240,7 @@ def make_geoaxes(projection='PlateCarree', proj_kws={}):
     projection : str
         Name of the projection to use when creating the map
     proj_kws : dict (optional)
-        Additional keyword arguments to pass to the projection 
+        Additional keyword arguments to pass to the projection
         creation function
 
     Returns
@@ -95,7 +248,7 @@ def make_geoaxes(projection='PlateCarree', proj_kws={}):
     ax : GeoAxes object with requeted mapping projection.
 
     """
-  
+
     proj_kwargs = {}
     if proj_kws:
         proj_kwargs.update(proj_kws)
@@ -120,6 +273,7 @@ def check_cyclic(data, coord='lon'):
 
     """
     return np.all(data.isel(**{coord: 0}) == data.isel(**{coord: -1}))
+
 
 class MidpointNorm(Normalize):
     """ A normalization tool for ensuring that '0' occurs in the
@@ -170,6 +324,7 @@ class MidpointNorm(Normalize):
         if is_scalar:
             result = result[0]
         return result
+
 
 def make_colors(levels, coloring, cmap):
     """ Generate colormaps and norms based on user-defined
@@ -279,6 +434,7 @@ def add_colorbar(mappable, fig=None, ax=None, thickness=0.025,
 
     return cb
 
+
 def multipanel_figure(nrow, ncol, aspect=16./10., size=3.,
                       sharex=True, sharey=True,
                       cbar_space=1., cbar_orientation='vertical',
@@ -346,6 +502,7 @@ def set_title(ax, varname="", units="", l=None, r=None):
         ax.set_title(l, loc='right')
     return ax
 
+
 def set_labels(ax, xlabel=None, ylabel=None, width=0):
     """ Add x- or y-axis labels to an axis instance.
 
@@ -373,6 +530,22 @@ def set_labels(ax, xlabel=None, ylabel=None, width=0):
             ylabel = "\n".join(wrap(ylabel), width)
         ax.set_ylabel(ylabel)
     return ax
+
+
+def label_hanging(g, geo=False):
+    """ Add x-labels to "hanging" plots """
+    n_hanging = len(g.col_names) % g._col_wrap
+    for i, ax in enumerate(g.axes[-2, -n_hanging:]):
+        print("   {}) {}".format(i+1, ax.get_xlabel()))
+        if geo:
+            ax = label_lon(ax)
+        else:
+            for t in ax.xaxis.get_ticklabels():
+                # print("      " + t.get_text())
+                t.set_visible(True)
+        ax.set_xlabel(g._bottom_axes[0].get_xlabel())
+    return g
+
 
 def save_figure(root, suffix="", fig=None, qual="quick"):
     """ Save a figure with presets for different output
@@ -637,3 +810,24 @@ def _color_palette(cmap, n_colors):
         pal = cmap(colors_i)
 
     return pal
+
+# Color manipulation functions - https://gist.github.com/ebressert/32806ac1c95461349522
+import colorsys
+def alter(color, col, factor=1.1):
+    color = np.array(color)
+    color[col] = color[col]*factor
+    color[color > 1] = 1
+    color[color < 0] = 0
+    return tuple(color)
+def rgb2hls(color):
+    return colorsys.rgb_to_hls(*color)
+def hls2rgb(color):
+    return colorsys.hls_to_rgb(*color)
+def lighten(color, increase=0.2):
+    return hls2rgb(alter(rgb2hls(color), 1, factor=1+increase))
+def darken(color, decrease=0.2):
+    return hls2rgb(alter(rgb2hls(color), 1, factor=1-decrease))
+def saturate(color, increase=0.2):
+    return hls2rgb(alter(rgb2hls(color), 2, factor=1+increase))
+def desaturate(color, decrease=0.2):
+    return hls2rgb(alter(rgb2hls(color), 2, factor=1-decrease))
