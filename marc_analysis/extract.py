@@ -6,8 +6,8 @@ import os, re
 from pandas import DataFrame
 from subprocess import call
 
-from . utilities import remove_intermediates, cdo_func, get_git_versioning
 from . io import _format_regex, _match_file_list
+from . utilities import get_git_versioning
 
 __all__ = ['extract_variable', ]
 
@@ -200,3 +200,45 @@ def extract_variable(exp, var, out_suffix="", save_dir='', re_extract=False,
 
         else:
             logger.debug("      Extracted dataset already present.")
+
+######################################################################
+## Extraction/processing functions
+
+def remove_intermediates(intermediates):
+    """ Delete list of intermediate files. """
+    for fn in intermediates:
+        logger.debug("Removing", fn)
+        os.remove(fn)
+
+def arg_in_list(arg, arg_list):
+    """ Returns true if `arg` is a partial match for any value in `arg_list`. """
+    return reduce(lambda a, b: a or b, [arg in s for s in arg_list])
+
+def cdo_func(args, fn_in, fn_out, silent=True):
+    """ Execute a sequence of CDO functions in a single process. """
+    call_args = ["cdo", "-O", ]
+    if silent: call_args.append("-s")
+
+    def _proc_arg(arg):
+        if isinstance(arg, (list, tuple)):
+            return ",".join(arg)
+        else:
+            return arg
+
+    call_args.append(args[0])
+
+    for arg in args[1:]:
+        call_args.append("-" + _proc_arg(arg))
+    call_args.extend([fn_in, fn_out])
+
+    logger.debug("      CDO - %s" % " ".join(call_args))
+    call(call_args)
+
+    # Post-process using ncwa to remove variables which have been
+    # averaged over
+    # if arg_in_list("vert", args):
+    #     call(['ncwa', '-O', '-a', "lev", fn_out, fn_out])
+    if arg_in_list("tim", args):
+        call(['ncwa', '-O', '-a', "time", fn_out, fn_out])
+    # if arg_in_list("zon", args):
+    #     call(['ncwa', '-O', '-a', "lon", fn_out, fn_out])
