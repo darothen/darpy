@@ -22,7 +22,7 @@ import matplotlib.ticker as mticker
 import seaborn as sns
 
 from . common import *
-from .. convert import cyclic_dataarray
+from .. utilities import cyclic_dataarray
 
 ## 1D PLOTS
 
@@ -203,9 +203,10 @@ def geo_plot(darray, lon='lon', lat='lat', ax=None, method='contourf',
         warnings.warn("Could not label the given map projection.")
 
     # Infer colormap settings if not provided
-    if not ('vmin' in kwargs):
+    if not (('vmin' in kwargs) or ('levels' in kwargs)):
         cmap_kws = infer_cmap_params(darray.data, **extra_args)
         extra_args.update(cmap_kws)
+    # logger.debug("geo_plot: cmap_kws={}".format(cmap_kws))
 
     gp = plot_func(darray[lon].values, darray[lat].values, darray.data,
                    **extra_args)

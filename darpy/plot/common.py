@@ -27,10 +27,17 @@ PLOTTYPE_ARGS = {
     'imshow': dict(),
 }
 
+def get_projection(name, *args, **kwargs):
+    """ Instantiate a Cartopy coordinate reference system for
+    constructing a GeoAxes object.
+
+    """
+    return ccrs.__dict__[name](*args, **kwargs)
+
 #: Default projection settings
 PROJECTION = get_projection("PlateCarree", central_longitude=0.)
 TRANSFORM = get_projection("PlateCarree")
-SUBPLOT_KWS = dict(projection=projection, aspect='auto')
+SUBPLOT_KWS = dict(projection=PROJECTION, aspect='auto')
 LAT_TICKS = [-90, -60, -30, 0, 30, 60, 90]
 LON_TICKS = [-150, -90, -30, 30, 90, 150]
 TICK_STYLE = {'size': 12}
@@ -123,7 +130,7 @@ def label_lon(ax, axis='x', transform=TRANSFORM):
     return ax
 
 
-def label_lat(ax, axis='y', transform=transform):
+def label_lat(ax, axis='y', transform=TRANSFORM):
     """ Label latitudes on a plot. """
     gl = ax.gridlines(crs=transform, draw_labels=True, **GRID_STYLE)
     if axis == 'y':
@@ -219,7 +226,7 @@ def geo_prettify(g, transform):
     return g
 
 
-def geo_prettify_ax(ax, transform=Transform, label_x=True, label_y=True):
+def geo_prettify_ax(ax, transform=TRANSFORM, label_x=True, label_y=True):
     """ Make longitude-latitude labels for a single plot. """
 
     ax.coastlines()
@@ -257,13 +264,6 @@ def make_geoaxes(projection='PlateCarree', proj_kws={}):
     ax = plt.axes(projection=proj)
 
     return ax
-
-def get_projection(name, *args, **kwargs):
-    """ Instantiate a Cartopy coordinate reference system for
-    constructing a GeoAxes object.
-
-    """
-    return ccrs.__dict__[name](*args, **kwargs)
 
 
 def check_cyclic(data, coord='lon'):
