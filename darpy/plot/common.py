@@ -239,7 +239,8 @@ def geo_prettify_ax(ax, transform=TRANSFORM, label_x=True, label_y=True):
     return ax
 
 
-def make_geoaxes(projection='PlateCarree', proj_kws={}):
+def make_geoaxes(projection='PlateCarree', proj_kws={}
+                 size=4., aspect=16./10.):
     """ Create a GeoAxes mapping object.
 
     Parameters
@@ -261,7 +262,8 @@ def make_geoaxes(projection='PlateCarree', proj_kws={}):
         proj_kwargs.update(proj_kws)
 
     proj = get_projection(projection, **proj_kwargs)
-    ax = plt.axes(projection=proj)
+    fig = plt.figure(figsize=get_figsize(size, aspect))
+    ax = fig.add_subplot(111, projection=proj, aspect='auto')
 
     return ax
 
