@@ -1,4 +1,7 @@
 
+import logging
+logger = logging.getLogger()
+
 import os
 import re
 from glob import glob
@@ -7,10 +10,7 @@ import numpy as np
 import pandas as pd
 import xarray
 
-import logging
-logger = logging.getLogger()
-
-__all__ = ['load_variable', 'load_netcdfs' ]
+__all__ = ['load_netcdfs', ]
 
 # Note - must compile with re.VERBOSE option; can't use advanced
 # string formatting because of specified field lengths in regex!
@@ -190,6 +190,7 @@ def load_variable(var_name, path_to_file,
 
     """
 
+    warnings.warn("load_variable() is essentially deprecated, but still may work")
     logger.info("Loading %s from %s" % (var_name, path_to_file))
 
     if method == "iris":
@@ -230,7 +231,7 @@ def load_variable(var_name, path_to_file,
         if int(yr) < 1650:
             yr = 2001
         yr = str(yr)
-            
+
         # Re-construct at Jan 01, 2001 and re-set
         timestamp[0] = "-".join([yr, mm, dy])
         new_units = " ".join([interval, "since"] + timestamp)
@@ -247,8 +248,8 @@ def load_variable(var_name, path_to_file,
         for field in ds:
             if hasattr(ds[field], 'missing_value'):
                 del ds[field].attrs['missing_value']
-            
-            
+
+
         # Lazy decode CF
         ds = xarray.decode_cf(ds)
 
