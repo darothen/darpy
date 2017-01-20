@@ -2,13 +2,7 @@
 import warnings
 
 import numpy as np
-try:
-    import geopandas
-    from shapely.geometry import asPoint, MultiPolygon
-    from shapely.prepared import prep
-except ImportError:
-    warnings.warn("Unable to load geopandas/shapely; ocean shape mask"
-                  " not available.")
+
 import xarray
 import xarray.ufuncs as xu
 from xarray import DataArray, Dataset
@@ -704,17 +698,6 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
     #                             as_cube=True).data
     #     return data.collapsed(['latitude', 'longitude'],
     #                           iris.analysis.MEAN, weights=weights.data).data
-
-
-@preserve_attrs
-def pd_minus_pi(ds, pd='F2000', pi='F1850'):
-    """ Compute difference between present day and pre-industrial,
-    given a Dataset/DataArray with the emissions scenario as an
-    embedded dimension.
-
-    """
-    return ds.sel(aer=pd) - ds.sel(aer=pi)
-
 
 
 ################################################################
