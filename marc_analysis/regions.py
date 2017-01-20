@@ -113,7 +113,7 @@ def landsea_mask(ds, feature='ocean'):
 
     Returns
     -------
-    DataArray 
+    DataArray
 
     """
 
@@ -135,12 +135,12 @@ def landsea_mask(ds, feature='ocean'):
     lon1d = ds.lon.values.copy()
     lat1d = ds.lat.values.copy()
     orig_coords = [lon1d.copy(), lat1d.copy()]
-    
+
     # Correct dimensions - eliminate > 360 longitudes, shift lats to (0, 180)
     lon1d[lon1d < 0] = lon1d[lon1d < 0] + 360.
     lat1d = ds.lat.values + 90.
 
-    # Construct a 2D grid for the original coordinate system and chop to 
+    # Construct a 2D grid for the original coordinate system and chop to
     # integers (which approximate indices on a 180x360 grid)
     lat2d, lon2d = np.meshgrid(lat1d, lon1d)
     lat2d = lat2d.astype(int)
@@ -156,9 +156,9 @@ def landsea_mask(ds, feature='ocean'):
     # and will now pass the indices for masking
     mask_raw = _LANDSEA_MASK['LSMASK'].data[[lat2d, lon2d]] == feature_map[feature]
     mask_da = DataArray(mask_raw, coords=orig_coords, dims=['lon', 'lat'])
-    
+
     return mask_da
-    
+
 
 #################################
 # Quaas regional analysis
