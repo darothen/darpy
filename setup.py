@@ -4,55 +4,35 @@ import warnings
 from setuptools import setup
 from textwrap import dedent
 
-MAJOR, MINOR, MICRO = 0, 1, 0
-DEV = True
-VERSION = "{}.{}.{}".format(MAJOR, MINOR, MICRO)
+from datetime import datetime
 
-# Correct versioning with git info if DEV
-if DEV:
-    import subprocess
+# Use a date-stamp format for versioning
+now = datetime.now()
+VERSION = now.strftime("%Y-%m-%d")
 
-    pipe = subprocess.Popen(
-        ['git', "describe", "--always", "--match", "v[0-9]*"],
-        stdout=subprocess.PIPE)
-    so, err = pipe.communicate()
-
-    if pipe.returncode != 0:
-        # no git or something wrong with git (not in dir?)
-        warnings.warn("WARNING: Couldn't identify git revision, using generic version string")
-        VERSION += ".dev"
-    else:
-        git_rev = so.strip()
-        git_rev = git_rev.decode('ascii') # necessary for Python >= 3
-
-        VERSION += ".dev-{}".format(git_rev)
-
-
-NAME = 'marc_analysis'
+NAME = 'darpy'
 LICENSE = 'BSD 3-Clause'
 AUTHOR = 'Daniel Rothenberg'
 AUTHOR_EMAIL = 'darothen@mit.edu'
-URL = 'https://github.com/darothen/marc_analysis'
+URL = 'https://github.com/darothen/darpy'
 CLASSIFIERS = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.4',
+    'Programming Language :: Python :: 3.5',
     'Topic :: Scientific/Engineering',
 ]
 
-DESCRIPTION = "Analysis toolkit for CESM/MARC simulations"
+DESCRIPTION = "Personal research and analysis toolkit climate data"
 LONG_DESCRIPTION = """
-**marc_analysis** is a suite of Python tools to help automate many
-tasks related to analyzing CESM/MARC experiment output. It comes with
-helper classes for extracting default and value-added/post-processed
-variables from the simulation archive and for managing experimental
-setups.
+**darpy** is a collection of analysis and plotting tools used in the research
+work of Daniel Rothenberg.
 """
 
 
 def _write_version_file():
 
-    fn = os.path.join(os.path.dirname(__file__), 'marc_analysis', 'version.py')
+    fn = os.path.join(os.path.dirname(__file__), 'darpy', 'version.py')
 
     version_str = dedent("""
         version = "{}"
@@ -73,20 +53,20 @@ setup(name=NAME,
       description=DESCRIPTION,
       long_description=LONG_DESCRIPTION,
       url=URL,
-      packages=['marc_analysis', ],
+      packages=['darpy', ],
       package_data={
-          'marc_analysis': ['data/masks.nc',
-                            'data/CESM_default_vars.p',
-                            'data/ne_110m_ocean.shp',
-                            'data/ne_110m_land.shp',
-                            'data/quaas_regions.nc',
-                            'data/landsea.nc'],
+          'darpy': ['data/masks.nc',
+                    'data/CESM_default_vars.p',
+                    'data/ne_110m_ocean.shp',
+                    'data/ne_110m_land.shp',
+                    'data/quaas_regions.nc',
+                    'data/landsea.nc'],
       },
-      scripts=['scripts/calc_aerosol', 
-               'scripts/quick_plot', 
-               'scripts/simple_cat', 
-               'scripts/interp_pres', 
+      scripts=['scripts/calc_aerosol',
+               'scripts/quick_plot',
+               'scripts/simple_cat',
+               'scripts/interp_pres',
                'scripts/interp_field',
-               'scripts/reduce_dims', 
+               'scripts/reduce_dims',
                'scripts/global_avg', ],
 )

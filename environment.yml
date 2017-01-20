@@ -1,18 +1,18 @@
-name: marc_analysis
+name: darpy
 channels:
-  - unidata
-  - IOOS
-  - scitools
+  - conda-forge
   - darothen
 dependencies:
-  - cartopy>=0.12
+  - cartopy>=0.13
   - dask
   - geopandas
   - jupyter
   - matplotlib
   - netcdf4
   - numpy
-  - python=3.4
+  - pyresample
+  - python=3.5
+  - scipy
   - seaborn>=0.6
   - xlrd
-  - xarray>=0.7
+  - xarray>=0.8.2

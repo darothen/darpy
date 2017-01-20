@@ -19,7 +19,7 @@ logger = logging.getLogger()
 
 import os
 import sys
-import marc_analysis as ma
+import darpy as dr
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -33,7 +33,7 @@ parser.add_argument("in_fn", metavar="in.nc", type=str,
                     help="Name of input file")
 parser.add_argument("out_fn", metavar="out.nc", type=str,
                     help="Name of output file")
-parser.add_argument("-f", "--f-interp", type=str, 
+parser.add_argument("-f", "--f-interp", type=str,
                     help="Optional, auxiliary file containing interpolation field")
 parser.add_argument("--levels", nargs="+", type=float, required=True,
                     help="Interpolation levels, matching the units of the named"
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     for field in fields_to_process:
         logger.debug("    " + field)
         interpolation_levels = args.levels
-        interped_field = ma.interp_by_field(ds[field],
+        interped_field = dr.interp_by_field(ds[field],
                                             interpolation_field,
                                             interpolation_levels)
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
         interped_field.attrs['_FillValue'] = np.nan
         # interped_field.attrs['missing_value'] = np.nan
 
-        ma.copy_attrs(ds[field], interped_field)
+        dr.copy_attrs(ds[field], interped_field)
         interp_das[field] = interped_field
 
     # Combine into new DataSet
@@ -120,7 +120,7 @@ if __name__ == "__main__":
 
     # Append history
     call_str = __file__ + " ".join(sys.argv[1:])
-    new_ds = ma.append_history(new_ds, call_str)
+    new_ds = dr.append_history(new_ds, call_str)
 
     # Save output file
     logger.debug("Writing output to {}".format(args.out_fn))

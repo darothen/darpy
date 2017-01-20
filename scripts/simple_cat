@@ -28,7 +28,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger()
 
 import sys
-import marc_analysis as ma
+import darpy as dr
 import pandas as pd
 import xarray
 
@@ -90,11 +90,11 @@ if __name__ == "__main__":
     concat_ds = concat_ds.T
 
     # Copy attributes
-    concat_ds = ma.copy_attrs(ds, concat_ds)
+    concat_ds = dr.copy_attrs(ds, concat_ds)
 
     # Append history
     call_str = __file__ + " " + " ".join(sys.argv[1:])
-    concat_ds = ma.append_history(concat_ds, call_str)
+    concat_ds = dr.append_history(concat_ds, call_str)
 
     # Save to disk
     out_kwargs = {}

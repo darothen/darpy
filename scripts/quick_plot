@@ -16,7 +16,7 @@ from itertools import product
 
 import matplotlib.pyplot as plt
 import seaborn as sns
-import marc_analysis.plot as maplt
+import darpy.plot as drplt
 
 import click
 
@@ -262,7 +262,7 @@ def zonalvert(cfg, lims, top, log_vert, cmap, method, robust):
         cmap_kws['cmap'] = cmap
     else:
         cmap_kws['cmap'] = 'viridis'
-    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+    cmap_kws = drplt.infer_cmap_params(darray, **cmap_kws)
     print_dict(cmap_kws, "Plot aesthetics")
 
     # Iterate over the selected cases
@@ -281,18 +281,18 @@ def zonalvert(cfg, lims, top, log_vert, cmap, method, robust):
     # Actual plot logic
     logger.debug("\nCreating plot...")
     try:
-        ax, gp = maplt.vertical_plot(d_case, method=method, top=top,
+        ax, gp = drplt.vertical_plot(d_case, method=method, top=top,
                                      log_vert=log_vert, **cmap_kws)
     except:
         # The plotting method doesn't like all the cmap_kws, so just use
         # vmin/vmax and cmap
-        ax, gp = maplt.vertical_plot(d_case, method=method, top=top,
+        ax, gp = drplt.vertical_plot(d_case, method=method, top=top,
                                      log_vert=log_vert,
                                      vmin=cmap_kws['vmin'], vmax=cmap_kws['vmax'],
                                      cmap=cmap_kws['cmap'])
 
     fig = ax.get_figure()
-    cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+    cb = drplt.add_colorbar(gp, fig=fig, orientation='vertical',
                             pad=0.02, shrink=0.0)
     try:
         cb.set_label("[{}]".format(d_case.units), labelpad=10,
@@ -351,7 +351,7 @@ def horiz(cfg, projection, lims, cmap, method, robust, colorbar):
         cmap_kws['cmap'] = cmap
     else:
         cmap_kws['cmap'] = 'viridis'
-    cmap_kws = maplt.infer_cmap_params(darray, **cmap_kws)
+    cmap_kws = drplt.infer_cmap_params(darray, **cmap_kws)
     print_dict(cmap_kws, "Plot aesthetics")
 
     # Iterate over the selected cases
@@ -370,19 +370,19 @@ def horiz(cfg, projection, lims, cmap, method, robust, colorbar):
     # Actual plot logic
     logger.debug("\nCreating plot...")
     try:
-        ax, gp = maplt.geo_plot(d_case, method=method, projection=projection,
+        ax, gp = drplt.geo_plot(d_case, method=method, projection=projection,
                                 **cmap_kws)
     except:
         # The plotting method doesn't like all the cmap_kws, so just use
         # vmin/vmax and cmap
-        ax, gp = maplt.geo_plot(d_case, method=method, projection=projection,
+        ax, gp = drplt.geo_plot(d_case, method=method, projection=projection,
                                 vmin=cmap_kws['vmin'], vmax=cmap_kws['vmax'],
                                 cmap=cmap_kws['cmap'])
 
     fig = ax.get_figure()
     if colorbar:
         logger.debug("\nDrawing colorbar...")
-        cb = maplt.add_colorbar(gp, fig=fig, orientation='vertical',
+        cb = drplt.add_colorbar(gp, fig=fig, orientation='vertical',
                                 pad=0.02, shrink=0.15)
         try:
             cb.set_label("[{}]".format(d_case.units), labelpad=10,
@@ -466,7 +466,7 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
 
     # Plot each case
     logger.debug("\nCreating plot...")
-    fig, axes = maplt.multipanel_figure(1, 1, size=4.)
+    fig, axes = drplt.multipanel_figure(1, 1, size=4.)
     ax = axes[0, 0]
 
     # Process addtional kwargs
@@ -485,19 +485,19 @@ def line(cfg, dim, lims, add_zero, palette, plot_kwargs):
         logger.debug("   {}) {}".format(i+1, case_label))
         d_case = darray.sel(**case).load()
 
-        ax, lp = maplt.line_plot(d_case, dim=dim, label=case_label, ax=ax,
+        ax, lp = drplt.line_plot(d_case, dim=dim, label=case_label, ax=ax,
                                  **kwargs)
 
         colors[case_label] = lp[0].get_color()
     if not cases:
-        ax, lp = maplt.line_plot(darray, dim=dim, ax=ax,
+        ax, lp = drplt.line_plot(darray, dim=dim, ax=ax,
                                  **kwargs)
 
     if lims:
         ax.set_ylim(lims[0], lims[1])
 
     if colors:
-        _ = maplt.colortext_legend(colors, loc='upper left', frameon=False,
+        _ = drplt.colortext_legend(colors, loc='upper left', frameon=False,
                                    bbox_to_anchor=[0.92, 1.0], fontsize=12)
 
     if add_zero:

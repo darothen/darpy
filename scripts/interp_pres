@@ -14,7 +14,7 @@ logger = logging.getLogger()
 
 import os
 import sys
-import marc_analysis as ma
+import darpy as dr
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -101,9 +101,9 @@ if __name__ == "__main__":
         logger.debug("Computing 3D pressure field")
         P0 = ds['P0'] if "P0" in ds.data_vars else 100000.
         if "hyam" in MANDATORY_FIELDS:
-            pressure_field_m = ma.hybrid_to_pressure(ds, 'm', P0)
+            pressure_field_m = dr.hybrid_to_pressure(ds, 'm', P0)
         if "hyai" in MANDATORY_FIELDS:
-            pressure_field_i = ma.hybrid_to_pressure(ds, 'i', P0)
+            pressure_field_i = dr.hybrid_to_pressure(ds, 'i', P0)
 
     interp_levels = 100.*np.array(args.levels)
 
@@ -116,13 +116,13 @@ if __name__ == "__main__":
         logger.debug("    " + field)
         lev_name = "lev" if "lev" in ds[field].dims else "ilev"
         pres_levs = pressure_field_m if lev_name =="lev" else pressure_field_i
-        interped_field = ma.interp_to_pres_levels(ds[field], pres_levs,
+        interped_field = dr.interp_to_pres_levels(ds[field], pres_levs,
                                                   interp_levels, "numpy")
 
         # Copy attrs and set missing value attrs for CDO/NCO/etc
         interped_field.attrs['_FillValue'] = np.nan
 
-        ma.copy_attrs(ds[field], interped_field)
+        dr.copy_attrs(ds[field], interped_field)
         interp_das[field] = interped_field
 
     # Combine into new DataSet
@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
     # Append history
     call_str = "{} {}".format(__file__, " ".join(sys.argv[1:]))
-    new_ds = ma.append_history(new_ds, call_str)
+    new_ds = dr.append_history(new_ds, call_str)
 
     # Save output file
     logger.debug("Writing output to {}".format(args.out_fn))

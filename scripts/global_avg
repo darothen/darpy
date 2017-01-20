@@ -8,7 +8,7 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger()
 
 import sys
-import marc_analysis as ma
+import darpy as dr
 import xarray as xr
 
 from argparse import ArgumentParser, RawDescriptionHelpFormatter
@@ -49,13 +49,13 @@ if __name__ == "__main__":
 
     # Apply global averaging
     logger.debug("Computing global average")
-    weights = ma.area_grid(data.lon, data.lat)
-    data = ma.global_avg(data, weights=weights)
+    weights = dr.area_grid(data.lon, data.lat)
+    data = dr.global_avg(data, weights=weights)
 
 
     # Append history
     call_str = __file__ + " " + " ".join(sys.argv[1:])
-    data = ma.append_history(data, call_str)
+    data = dr.append_history(data, call_str)
 
     # Save output file
     logger.debug("Writing output to {}".format(args.out_fn))
