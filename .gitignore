@@ -16,4 +16,4 @@
 .idea/*
 
 # Package-specific files
-marc_analysis/version.py
+darpy/version.py
