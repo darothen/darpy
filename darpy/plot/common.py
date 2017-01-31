@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import cartopy.crs as ccrs
+from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 
 from matplotlib.colors import from_levels_and_colors, Normalize
 from matplotlib.pyplot import get_cmap, colorbar, savefig
@@ -119,12 +120,12 @@ def label_lon(ax, axis='x', transform=TRANSFORM):
     if axis == 'x':
         gl.xlabels_top = gl.ylabels_left = gl.ylabels_right = False
         gl.xlocator = mticker.FixedLocator(LON_TICKS)
-        gl.xformatter = maplt.LONGITUDE_FORMATTER
+        gl.xformatter = LONGITUDE_FORMATTER
         gl.xlabel_style = TICK_STYLE
     else:
         gl.xlabels_top = gl.xlabels_bottom = gl.ylabels_right = False
         gl.ylocator = mticker.FixedLocator(LON_TICKS)
-        gl.yformatter = maplt.LONGITUDE_FORMATTER
+        gl.yformatter = LONGITUDE_FORMATTER
         gl.ylabel_style = TICK_STYLE
 
     return ax
@@ -136,12 +137,12 @@ def label_lat(ax, axis='y', transform=TRANSFORM):
     if axis == 'y':
         gl.xlabels_top = gl.xlabels_bottom = gl.ylabels_right = False
         gl.ylocator = mticker.FixedLocator(LAT_TICKS)
-        gl.yformatter = maplt.LATITUDE_FORMATTER
+        gl.yformatter = LATITUDE_FORMATTER
         gl.ylabel_style = TICK_STYLE
     else:
         gl.xlabels_top = gl.ylabels_left = gl.ylabels_right = False
         gl.xlocator = mticker.FixedLocator(LAT_TICKS)
-        gl.xformatter = maplt.LATITUDE_FORMATTER
+        gl.xformatter = LATITUDE_FORMATTER
         gl.xlabel_style = TICK_STYLE
 
     return ax
@@ -185,11 +186,13 @@ def geo_grid_plot(data, x, y, col=None, row=None, col_wrap=None,
         plot_kws.update(dict(aspect=16./10., size=3.))
     plot_kws.update(kws)
 
+    subplot_kws = dict(projection=PROJECTION, aspect='auto')
+
     g = data.plot.imshow(x=x, y=y, row=row, col=col, col_wrap=col_wrap,
                          subplot_kws=subplot_kws, **plot_kws)
     if label_grid:
         # try:
-        g = geo_prettify(g, transform=transform)
+        g = geo_prettify(g, transform=TRANSFORM)
         # except TypeError:
         #     pass
     if label_avg:
@@ -239,7 +242,7 @@ def geo_prettify_ax(ax, transform=TRANSFORM, label_x=True, label_y=True):
     return ax
 
 
-def make_geoaxes(projection='PlateCarree', proj_kws={}
+def make_geoaxes(projection='PlateCarree', proj_kws={},
                  size=4., aspect=16./10.):
     """ Create a GeoAxes mapping object.
 

@@ -208,8 +208,21 @@ def geo_plot(darray, lon='lon', lat='lat', ax=None, method='contourf',
         extra_args.update(cmap_kws)
     # logger.debug("geo_plot: cmap_kws={}".format(cmap_kws))
 
-    gp = plot_func(darray[lon].values, darray[lat].values, darray.data,
-                   **extra_args)
+    # Coerce to correct dimension order
+    darray = darray.transpose(*['lat', 'lon'])
+
+    # Tweak the argument list to account for differences between imshow and other
+    # plotting methods
+    if method != 'imshow':
+        args = [darray[lon].values, darray[lat].values, darray.data]
+    else:
+        args = [darray.data, ]
+        extra_args['extent'] = [darray[lon].values.min(), darray[lon].values.max(),
+                                darray[lat].values.min(), darray[lat].values.max()]
+        extra_args['origin'] = 'lower'
+        extra_args['interpolation'] = 'nearest'
+        
+    gp = plot_func(*args, **extra_args)
 
     return ax, gp
 
