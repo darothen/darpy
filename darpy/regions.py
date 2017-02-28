@@ -4,6 +4,8 @@
 import pkg_resources
 import warnings
 
+from os.path import split, splitext
+
 try:
     import geopandas
     from shapely.geometry import asPoint, MultiPolygon
@@ -22,14 +24,32 @@ _MASKS = None
 _OCEAN_SHAPE = None
 _QUAAS_REGIONS = None
 
-__all__ = ['_load_resource_nc', 'landsea_mask']
+__all__ = ['load_resource', 'landsea_mask']
+
+
+def load_resource(filename, **kwargs):
+    """ Load a named resource file. """
+
+    root, ext = splitext(filename)
+    ext = ext[1:]
+
+    if ext == 'nc':
+        return _load_resource_nc(root, **kwargs)
+    elif ext == 'geojson':
+        filename = pkg_resources.resource_filename(
+            "darpy", "data/{}".format(filename)
+        )
+        return geopandas.read_file(filename)
+    else:
+        raise ValueError("Can't yet handle extension '{}'".format(ext))
+
 
 def _load_resource_nc(name, resource=None):
     """ Load a named netCDF resource file. """
 
     try:
         _resource_fn = pkg_resources.resource_filename(
-            "marc_analysis", "data/{}.nc".format(name)
+            "darpy", "data/{}.nc".format(name)
         )
 
         resource = xarray.open_dataset(_resource_fn, decode_cf=False,
