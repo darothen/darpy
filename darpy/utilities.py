@@ -377,11 +377,12 @@ def area_grid(lon, lat, asarray=False):
 
         # For some reason, there are random issues with the order
         # of the coordinates, so we try both ways here.
-        coords = OrderedDict(lon=lon, lat=lat)
+        coords = [lon, lat]
+        dims = ['lon', 'lat']
         while True:
             try:
                 areas = DataArray(
-                    areas, coords, name='area',
+                    areas, coords=coords, dims=dims, name='area',
                     attrs=dict(long_name="grid cell area", units="m^2")
                 )
 
