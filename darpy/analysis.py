@@ -2,6 +2,7 @@
 import warnings
 
 import numpy as np
+from scipy import signal
 
 import xarray
 import xarray.ufuncs as xu
@@ -691,15 +692,42 @@ def global_avg(data, weights=None, dims=['lon', 'lat']):
             new_data = new_data.sum(leftover_dims)
         return new_data
 
-    # elif isinstance(data, iris.cube.Cube):
-    #     raise NotImplementedError("`iris` deprecated with Python 3")
-    #     if weights is None:
-    #         weights = area_grid(ds.lon.values, ds.lat.values,
-    #                             as_cube=True).data
-    #     return data.collapsed(['latitude', 'longitude'],
-    #                           iris.analysis.MEAN, weights=weights.data).data
+                          
+def detrend(darr, dim='time'):
+    """ Remove a trend from one dimension of a DataArray. 
 
+    Uses scipy.signal.filter() to linearly detrend a given
+    DataArray. The detrended data is then re-centered around the 
+    mean of the original data.
 
+    Parameters
+    ----------
+    darr : xarray.DataArray
+        The data to be detrended
+    dim : str
+        Name of the dimension along which to detrend
+
+    Returns
+    -------
+    xarray.DataArray with the linear trend removed along the
+    indicated dimension
+    """    
+      
+    dim_idx = darr.dims.index(dim)
+    
+    # Compute mean and expand to include squeezed dim
+    darr_mean = darr.mean(dim).values
+    darr_mean = np.expand_dims(darr_mean, dim_idx)
+    
+    # Detrend
+    detrended = signal.detrend(darr.values, dim_idx)
+    
+    # Add back the mean to center
+    detrended = detrended + darr_mean
+    
+    darr.values = detrended
+    return darr
+                          
 ################################################################
 # IRIS CUBE FUNCTIONS
 

@@ -1,7 +1,4 @@
 
-import logging
-logger = logging.getLogger()
-
 import os, sys
 from collections import OrderedDict
 from datetime import datetime
@@ -10,6 +7,8 @@ from subprocess import call, check_output
 
 import numpy as np
 from xarray import DataArray, Dataset
+
+from . import logger
 
 try:
     from cartopy.util import add_cyclic_point
