@@ -22,7 +22,7 @@ from .. analysis import global_avg
 
 
 PLOTTYPE_ARGS = {
-    'pcolormesh': dict(linewidth='0'),
+    'pcolormesh': dict(linewidth='0', infer_intervals=True),
     'pcolor': dict(linewidth='0'),
     'contourf': dict(extend='both'),
     'imshow': dict(),
@@ -41,8 +41,8 @@ TRANSFORM = get_projection("PlateCarree")
 SUBPLOT_KWS = dict(projection=PROJECTION, aspect='auto')
 LAT_TICKS = [-90, -60, -30, 0, 30, 60, 90]
 LON_TICKS = [-150, -90, -30, 30, 90, 150]
-TICK_STYLE = {'size': 12}
-GRID_STYLE = dict(linewidth=0.5, color='grey', alpha=0.3)
+TICK_STYLE = dict(size=11, color='black', weight='regular')
+GRID_STYLE = dict(linewidth=0.5, color='grey', alpha=0.)
 
 
 def get_figsize(nrows=1, ncols=1, size=4., aspect=16./10.):
@@ -148,7 +148,30 @@ def label_lat(ax, axis='y', transform=TRANSFORM):
     return ax
 
 
-def label_global_avg(g):
+def label_global_avg(data, ax, format='{:3.2g}'):
+    """ Label global average of a given field on an axis. """
+    avg = global_avg(data)
+    avg = float(avg.data)
+
+    # Convert to TeX scientific notation if exponential
+    avg_str = format.format(avg)
+    if "e" in avg_str:
+        coeff, exp = avg_str.split("e")
+        exp = int(exp)
+        avg_str = "{}x10".format(coeff) + "$^{%d}$" % exp
+    s = avg_str
+    if hasattr(data, 'units'):
+        s += ' ' + data.units
+
+    xl = ax.get_xlim()
+    yl = ax.get_ylim()
+    ax.text(xl[-1] - 5, yl[-1] - 15, s,
+            size=11, ha='right',
+            bbox=dict(facecolor='white', alpha=0.8))
+    return ax
+
+
+def label_global_avg_grid(g):
     """ Label global field avg in a box for a FacetGrid of plots. """
     print("Global averages")
     print("---------------")
@@ -178,8 +201,29 @@ def label_global_avg(g):
     return g
 
 
-def geo_grid_plot(data, x, y, col=None, row=None, col_wrap=None,
+def geo_grid_plot(data, x='lon', y='lat', col=None, row=None, col_wrap=None,
                   label_grid=True, label_avg=True, **kws):
+    """ Facet over a dataset, produce a grid of GeoAxes to plot on.
+
+    Parameters
+    ----------
+    data : DataArray
+        The data you wish to facet over
+    x, y : str
+        Names of the x and y variables to use as coordinates
+    col, row : str
+        Name of the variable to facet over in each dimension
+    col_wrap : int
+        If only faceting over columns, the number of columns to
+        include per row
+    label_grid : bool
+        Add lat/lon grid and labels to the plot
+    label_avg : bool
+        Add an indicator of the spatially-weighted field average to the plot
+    **kws : dict-like
+        Additional keyword arguments to pass into the plotting function
+
+    """
 
     plot_kws = {}
     if (col is not None) or (row is not None):
