@@ -316,6 +316,15 @@ def shift_lons(ds, lon_dim='lon'):
     return ds
 
 
+def shift_roll(data, dim='lon'):
+    """ Shift longitude values in a Dataset or DataArray from [0, 360] to
+    [-180, 180] and then roll the longitude dimension so that it is ordered
+    and monotonic.
+
+    """
+    return shift_lons(data).roll(lon=len(data[dim])//2 - 1)
+
+
 def area_grid(lon, lat, asarray=False):
     """ Compute the area of the grid specified by 1D arrays
     lon and lat. Returns the result as a 2D array (nlon, nlat)

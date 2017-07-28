@@ -221,7 +221,7 @@ def geo_plot(darray, lon='lon', lat='lat', ax=None, method='contourf',
                                 darray[lat].values.min(), darray[lat].values.max()]
         extra_args['origin'] = 'lower'
         extra_args['interpolation'] = 'nearest'
-        
+
     gp = plot_func(*args, **extra_args)
 
     return ax, gp
