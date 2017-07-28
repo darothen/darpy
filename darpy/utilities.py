@@ -312,16 +312,21 @@ def shift_lons(ds, lon_dim='lon', neg_dateline=True):
     stays the same; else it is converted to -180 deg (180 W).
     
     """
-    lons = ds[lon_dim].values
+    ds_copy = ds.copy()
+    
+    lons = ds_copy[lon_dim].values
     new_lons = np.empty_like(lons)
     if neg_dateline:
-        mask = lons > 180
-    else:
         mask = lons >= 180
+    else:
+        mask = lons > 180
+
     new_lons[mask] = -(360. - lons[mask])
     new_lons[~mask] = lons[~mask]
-    ds[lon_dim].values = new_lons
-    return ds
+
+    ds_copy[lon_dim].values = new_lons
+    
+    return ds_copy
 
 
 def shift_roll(data, dim='lon', neg_dateline=True):
@@ -332,8 +337,8 @@ def shift_roll(data, dim='lon', neg_dateline=True):
     """
     shifted = shift_lons(data, dim, neg_dateline)
 
-    offset = 1 if neg_dateline else 0    
-    rolled =  shifted.roll(lon=len(data[dim])//2 - offset)
+    offset = 0 if neg_dateline else 1
+    rolled = shifted.roll(lon=len(data[dim])//2 - offset)
 
     return rolled
 
