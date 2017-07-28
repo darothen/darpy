@@ -305,24 +305,37 @@ def cyclic_dataarray(da, coord='lon'):
 
     return new_da
 
-def shift_lons(ds, lon_dim='lon'):
-    """ Shift longitudes from [0, 360] to [-180, 180] """
+def shift_lons(ds, lon_dim='lon', neg_dateline=True):
+    """ Shift longitudes from [0, 360] to [-180, 180] 
+    
+    If `neg_dateline` is True (by default), then a longitude of 180 deg
+    stays the same; else it is converted to -180 deg (180 W).
+    
+    """
     lons = ds[lon_dim].values
     new_lons = np.empty_like(lons)
-    mask = lons > 180
+    if neg_dateline:
+        mask = lons > 180
+    else:
+        mask = lons >= 180
     new_lons[mask] = -(360. - lons[mask])
     new_lons[~mask] = lons[~mask]
     ds[lon_dim].values = new_lons
     return ds
 
 
-def shift_roll(data, dim='lon'):
+def shift_roll(data, dim='lon', neg_dateline=True):
     """ Shift longitude values in a Dataset or DataArray from [0, 360] to
     [-180, 180] and then roll the longitude dimension so that it is ordered
     and monotonic.
 
     """
-    return shift_lons(data).roll(lon=len(data[dim])//2 - 1)
+    shifted = shift_lons(data, dim, neg_dateline)
+
+    offset = 1 if neg_dateline else 0    
+    rolled =  shifted.roll(lon=len(data[dim])//2 - offset)
+
+    return rolled
 
 
 def area_grid(lon, lat, asarray=False):
